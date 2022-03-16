@@ -1,0 +1,9 @@
+<script>
+    require(['okinus_script'], function(Okinus){
+        window.okinus = Okinus({
+            baseUri: "https://beta2.okinus.com",
+            retailerSlug: '<?= $block->getRetailerSlug() ?>',
+            storeSlug: '<?= $block->getStoreSlug() ?>'
+        });
+    })
+</script>

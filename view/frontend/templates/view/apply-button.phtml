@@ -1,0 +1,49 @@
+<script>
+    require(['jquery', 'jquery/jquery.cookie'], function($){
+        $(document).on('click', '#okinus-apply-button', function(){
+            okinus.apply(function(payload){
+                console.log(payload)
+                if (payload.step == 'CHECKOUT_APP_COMPLETE' && payload.status == 'approved') {
+                    let approvalData = payload.data;
+                    let approvalAmounts = approvalData.offerAmounts;
+					var returnedApprovalAmounts = [];
+					for (var key in approvalAmounts) {
+						if (approvalAmounts[key] !== " ") {
+							returnedApprovalAmounts.push(parseFloat(approvalAmounts[key].replace(/,/g, '')));
+						}
+					}
+
+					var okinusAmountApproved = Math.max.apply(Math, returnedApprovalAmounts).toFixed(2).replace(/,/g, '');
+                    $.cookie('okinus_approval_amount', okinusAmountApproved, {expires: 86400});
+
+                    $('.okinus-widget').show();
+
+                    $.ajax({
+                        url: '/okinus/cart/checkprice',
+                        method: 'post'
+                    }).done(function(response){
+                        $('.okinus-widget .amount-remain .value').html(response.data.value_format);
+                        $.cookie('okinus_approval_amount_format', response.data.value_format, {expires: 86400});
+                    });
+
+                    $.ajax({
+                        url: '/okinus/cart/paymentcalculator',
+                        method: 'post'
+                    }).done(function(response){
+                        $('.okinus-widget .estimated-payment .value').html(response.data.value_format);
+                        $.cookie('okinus_subtraction_amount_format', response.data.value_format, {expires: 86400});
+                        $.cookie('okinus_subtraction_amount', response.data.value, {expires: 86400});
+
+                    });
+
+
+                    $.cookie('okinus_biweekly_amount', parseFloat(0.00), {expires: 86400});
+                    $.cookie('okinus_popup_status', 'open', {expires: 86400});
+
+                    $("#okinus-apply-button").hide();
+                }
+            });
+        })
+    })
+
+</script>
