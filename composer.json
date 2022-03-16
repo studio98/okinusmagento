@@ -20,6 +20,5 @@
         "psr-4": {
             "Okinus\\Payment\\": ""
         }
-    },
-    "minimum-stability": "dev"
+    }
 }
