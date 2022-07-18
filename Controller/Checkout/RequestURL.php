@@ -2,15 +2,16 @@
 namespace Okinus\Payment\Controller\Checkout;
 
 class RequestURL extends \Magento\Framework\App\Action\Action{
-    const URL = 'https://beta2.okinus.com/api/v2/checkout';
-    
+    // const URL = 'https://beta2.okinus.com/api/v2/checkout';
+
     public function __construct(
         \Magento\Framework\App\Action\Context $context,
         \Magento\Framework\HTTP\Client\Curl $curl,
         \Magento\Checkout\Model\Session $checkoutSession,
         \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig,
         \Magento\Framework\Encryption\EncryptorInterface $encryptor,
-        \Magento\Framework\Controller\Result\JsonFactory $jsonFactory
+        \Magento\Framework\Controller\Result\JsonFactory $jsonFactory,
+        \Magento\Catalog\Api\ProductRepositoryInterface $productRepository
     )
     {
         parent::__construct($context);
@@ -18,7 +19,10 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
         $this->scopeConfig = $scopeConfig;
         $this->encryptor = $encryptor;
         $this->jsonFactory = $jsonFactory;
+        $this->productRepository = $productRepository;
         $this->curl = $curl;
+        $this->URL = $this->getConfigValue('payment/okinus_payment/environment') == 1 ? 'https://beta2.okinus.com/api/v2/checkout' : 'https://www.okinushub.com/api/v2/checkout';
+
     }
 
 
@@ -34,14 +38,15 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
             'return_url_thankyou' => '',
             'return_url_failure' => '',
             'store_id' => $this->getConfigValue('payment/okinus_payment/store_id'),
-            'test' => (bool)$this->getConfigValue('payment/okinus_payment/test_mode'),
+            'test' => false,
+            // 'test' => (bool)$this->getConfigValue('payment/okinus_payment/test_mode'),
             // 'application_id' => 1
         ];
 
         $headers = ["Content-Type" => "application/json", "Authorization" => "Bearer ".$this->encryptor->decrypt($this->getConfigValue('payment/okinus_payment/api_key')), "Accept" => "application/json"];
         $this->curl->setHeaders($headers);
 
-        $this->curl->post(self::URL, json_encode($params));
+        $this->curl->post($this->URL, json_encode($params));
 
         $result = json_decode($this->curl->getBody(), true);
 
@@ -65,20 +70,50 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
     }
 
     public function getConfigValue($path){
-        return $this->scopeConfig->getValue($path, 
+        return $this->scopeConfig->getValue($path,
         \Magento\Store\Model\ScopeInterface::SCOPE_STORE);
     }
 
     public function getItems($quote){
         $result = [];
+        $discountTotal = 0;
         foreach($quote->getAllVisibleItems() as $item){
+            $product = $this->productRepository->get($item->getProduct()->getSku());
+
             $result[] = [
                 'sku' => $item->getProduct()->getSku(),
                 'quantity' => $item->getQty(),
                 'unit_price' => $item->getPrice(),
-                'description' => $item->getProduct()->getShortDescription() ?: 'Null'
+                // 'description' => $item->getProduct()->getShortDescription() ?: $item->getProduct()->getDescription() ?: 'Null'
+                'description' =>  strip_tags($item->getProduct()->getName() . "<br />" . ($product->getDescription() ?: '')),
+            ];
+
+            $discountTotal += $item->getDiscountAmount();
+
+        }
+
+        // Adding Shipping Cost
+        if($quote->getShippingAddress()->getShippingAmount() > 0){
+            $result[] = [
+                'sku' => '0000',
+                'quantity' => 1,
+                'unit_price' => $quote->getShippingAddress()->getShippingAmount(),
+                'description' => 'Shipping',
             ];
         }
+
+        // Adding total discount
+        if($discountTotal > 0){
+            $result[] = [
+                'sku' => '0000',
+                'quantity' => 1,
+                'unit_price' => -$discountTotal,
+                'description' => 'Discount',
+            ];
+        }
+
+
         return $result;
     }
+
 }

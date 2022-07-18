@@ -11,8 +11,12 @@ class Config extends \Magento\Framework\View\Element\Template{
     }
 
     public function getConfigValue($path){
-        return $this->scopeConfig->getValue($path, 
+        return $this->scopeConfig->getValue($path,
         \Magento\Store\Model\ScopeInterface::SCOPE_STORE);
+    }
+
+    public function getBaseURL(){
+        return $this->getConfigValue('payment/okinus_payment/environment') == 1 ? 'https://beta2.okinus.com' : 'https://www.okinushub.com';
     }
 
     public function getRetailerSlug(){

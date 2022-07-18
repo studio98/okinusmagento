@@ -2,8 +2,8 @@
 namespace Okinus\Payment\Controller\Checkout;
 
 class Success extends \Magento\Framework\App\Action\Action{
-    const URL = 'https://beta2.okinus.com/api/v2/checkout';
-    
+    // const URL = 'https://beta2.okinus.com/api/v2/checkout';
+
     public function __construct(
         \Magento\Framework\App\Action\Context $context,
         \Magento\Framework\HTTP\Client\Curl $curl,

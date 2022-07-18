@@ -2,8 +2,8 @@
 namespace Okinus\Payment\Controller\Adminhtml\System;
 
 class Verify extends \Magento\Framework\App\Action\Action{
-    const URL = 'https://beta2.okinus.com/api/v2/checkout';
-    
+    // const URL = 'https://beta2.okinus.com/api/v2/checkout';
+
     public function __construct(
         \Magento\Framework\App\Action\Context $context,
         \Magento\Framework\HTTP\Client\Curl $curl,
@@ -17,6 +17,7 @@ class Verify extends \Magento\Framework\App\Action\Action{
         $this->encryptor = $encryptor;
         $this->jsonFactory = $jsonFactory;
         $this->curl = $curl;
+        $this->URL = $this->getConfigValue('payment/okinus_payment/environment') == 1 ? 'https://beta2.okinus.com/api/v2/checkout' : 'https://www.okinushub.com/api/v2/checkout';
     }
 
 
@@ -41,7 +42,7 @@ class Verify extends \Magento\Framework\App\Action\Action{
             'return_url_thankyou' => 'success',
             'return_url_failure' => 'fail',
             'store_id' => $store_id,
-            'test' => true,
+            'test' => false,
         ];
 
         if($api_key == '******'){
@@ -51,7 +52,7 @@ class Verify extends \Magento\Framework\App\Action\Action{
         $headers = ["Content-Type" => "application/json", "Authorization" => "Bearer ".$api_key, "Accept" => "application/json"];
         $this->curl->setHeaders($headers);
 
-        $this->curl->post(self::URL, json_encode($params));
+        $this->curl->post($this->URL, json_encode($params));
 
         $result = json_decode($this->curl->getBody(), true);
 
@@ -59,7 +60,7 @@ class Verify extends \Magento\Framework\App\Action\Action{
     }
 
     public function getConfigValue($path){
-        return $this->scopeConfig->getValue($path, 
+        return $this->scopeConfig->getValue($path,
         \Magento\Store\Model\ScopeInterface::SCOPE_STORE);
     }
 }

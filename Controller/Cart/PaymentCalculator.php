@@ -2,8 +2,8 @@
 namespace Okinus\Payment\Controller\Cart;
 
 class PaymentCalculator extends \Magento\Framework\App\Action\Action{
-    const URL = 'https://www.okinushub.com/api/v1/score/payments';
-    
+    // const URL = 'https://www.okinushub.com/api/v1/score/payments';
+
     public function __construct(
         \Magento\Framework\App\Action\Context $context,
         \Magento\Framework\HTTP\Client\Curl $curl,
@@ -17,6 +17,7 @@ class PaymentCalculator extends \Magento\Framework\App\Action\Action{
         $this->jsonFactory = $jsonFactory;
         $this->priceHelper = $priceHelper;
         $this->curl = $curl;
+        $this->URL = $this->getConfigValue('payment/okinus_payment/environment') == 1 ? 'https://beta2.okinus.com/api/v2/checkout' : 'https://www.okinushub.com/api/v2/checkout';
     }
 
 
@@ -38,7 +39,7 @@ class PaymentCalculator extends \Magento\Framework\App\Action\Action{
         $headers = ["Content-Type" => "application/json"];
         $this->curl->setHeaders($headers);
 
-        $this->curl->post(self::URL, json_encode($params));
+        $this->curl->post($this->URL, json_encode($params));
 
         $result = json_decode($this->curl->getBody(), true);
 

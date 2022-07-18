@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016 Magento. All rights reserved.
+ * Copyright Â© 2016 Magento. All rights reserved.
  * See COPYING.txt for license details.
  */
 /*browser:true*/
@@ -7,9 +7,10 @@
 define(
     [
         'Magento_Checkout/js/view/payment/default',
-        'jquery'
+        'jquery',
+        'Magento_Checkout/js/model/payment/additional-validators'
     ],
-    function (Component, $) {
+    function (Component, $, additionalValidators) {
         'use strict';
 
         return Component.extend({
@@ -19,7 +20,7 @@ define(
             },
 
             initObservable: function () {
-                
+
                 this._super()
                     .observe([
                         'transactionResult'
@@ -49,8 +50,20 @@ define(
                 });
             },
 
+            isButtonActive: function () {
+                return false;
+            },
+
             createCheckout: function(){
                 var self = this;
+                // var okinus = Okinus({
+                //     baseUri: "https://beta2.okinus.com",
+                //     retailerSlug: window.checkoutConfig.payment.okinus_payment.retailerSlug,
+                //     storeSlug: window.checkoutConfig.payment.okinus_payment.storeSlug
+                // });
+                if (!additionalValidators.validate() || !this.isPlaceOrderActionAllowed()) {
+                    return false;
+                }
                 $.ajax({
                     url: '/okinus/checkout/requesturl',
                     method: 'post',
@@ -60,6 +73,7 @@ define(
                         alert(response.data.message);
                     }else{
                         okinus.checkout(response.data.url, function(payload) {
+                            console.log(payload, 'test')
                             if(payload.status == 'success' && payload.step == 'CHECKOUT_COMPLETED'){
                                 self.placeOrder();
                             }

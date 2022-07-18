@@ -32,7 +32,9 @@
                         type="button"
                         data-bind="
                         click: createCheckout,
-                        attr: {title: $t('Pay with Okinus')}
+                        attr: {title: $t('Pay with Okinus')},
+                        enable: (getCode() == isChecked()),
+                        css: {disabled: !isPlaceOrderActionAllowed()}
                         ">
                     <span data-bind="i18n: 'Pay with Okinus'"></span>
                 </button>
