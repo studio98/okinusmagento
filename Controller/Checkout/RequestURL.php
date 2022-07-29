@@ -78,7 +78,10 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
         $result = [];
         $discountTotal = 0;
         foreach($quote->getAllVisibleItems() as $item){
-            $product = $this->productRepository->get($item->getProduct()->getSku());
+            
+            /* Add capability for Product Having a custom options with sku for custom options */
+                $product = $this->productRepository->getById($item->getProductId());
+            /* Add capability for Product Having a custom options with sku for custom options */
 
             $result[] = [
                 'sku' => $item->getProduct()->getSku(),
