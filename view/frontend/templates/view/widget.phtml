@@ -1,0 +1,101 @@
+<?php if ($block->isDisplayed()) :?>
+<div class="okinus-dollar-sign" style="display: none">
+    <img src="<?= $this->getViewFileUrl('Okinus_Payment::images/dollar-sign.png'); ?>" />
+</div>
+<div class="okinus-widget" style="display: none">
+    <span class="close-widget">X</span>
+    <div class="amount-remain">
+        <p class="label">
+            <?= __('Estimated Approval Amount Remaining:') ?>
+        </p>
+        <p class="value"></p>
+    </div>
+    <hr />
+    <div class="estimated-payment">
+        <p class="label">
+            <?= __('Estimated Payment:') ?>
+        </p>
+        <p class="value"></p>
+    </div>
+</div>
+
+<script>
+    require(['jquery', 'jquery/jquery.cookie'], function($) {
+        $(document).ready(function() {
+            $('.close-widget').click(function() {
+                $('.okinus-widget').fadeOut();
+                $.cookie('okinus_popup_hide', true, {
+                    expires: 86400
+                });
+                $('.okinus-dollar-sign').fadeIn();
+            });
+
+            $('.okinus-dollar-sign').click(function() {
+                $('.okinus-widget').fadeIn();
+                $.cookie('okinus_popup_hide', false, {
+                    expires: 86400
+                });
+                $('.okinus-dollar-sign').fadeOut();
+            });
+            console.log($.cookie('okinus_popup_hide'))
+            if($.cookie('okinus_popup_hide') == 'false'){
+                console.log(1)
+                $('.okinus-widget').show();
+                $('.okinus-dollar-sign').hide();
+            }else{
+                console.log(2)
+                $('.okinus-widget').hide();
+                $('.okinus-dollar-sign').show();
+            }
+
+            if ($.cookie('okinus_popup_status') != null && $.cookie('okinus_popup_status') == 'open') {
+                // $('.okinus-widget').show();
+                $("#okinus-apply-button").hide();
+
+                $.ajax({
+                    url: '/okinus/cart/checkprice',
+                    method: 'post'
+                }).done(function(response) {
+                    $('.okinus-widget .amount-remain .value').html(response.data.value_format);
+                    $.cookie('okinus_approval_amount_format', response.data.value_format, {
+                        expires: 86400
+                    });
+                });
+
+                $.ajax({
+                    url: '/okinus/cart/paymentcalculator',
+                    method: 'post'
+                }).done(function(response) {
+                    $('.okinus-widget .estimated-payment .value').html(response.data
+                        .value_format);
+                    $.cookie('okinus_subtraction_amount_format', response.data.value_format, {
+                        expires: 86400
+                    });
+                });
+            }else{
+                $('.okinus-dollar-sign').hide();
+            }
+
+            if ($.cookie('okinus_approval_amount_format') != null) {
+                $('.okinus-widget .amount-remain .value').html($.cookie(
+                    'okinus_approval_amount_format'));
+            }
+
+            if ($.cookie('okinus_subtraction_amount_format') != null) {
+                $('.okinus-widget .estimated-payment .value').html($.cookie(
+                    'okinus_subtraction_amount_format'));
+            }
+        })
+    })
+</script>
+<?php endif; ?>
+<style>
+    .okinus-widget {
+        <?= $block->getWidgetPosition() == 1 ? "left" : "right" ?>
+        : 20px !important;
+    }
+    .okinus-dollar-sign > img {
+        <?= $block->getWidgetPosition() == 1 ? "left" : "right" ?>
+        : 20px !important;
+    }
+</style>

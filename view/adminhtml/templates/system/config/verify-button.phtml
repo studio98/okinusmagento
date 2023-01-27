@@ -1,0 +1,33 @@
+<?php
+    $controller = $block->getCustomUrl();
+    echo $block->getButtonHtml();
+?>
+<span id="verify-status" style="display: inline-block; margin-left: 10px; font-weight: bold"></span>
+<script>
+    require(['jquery'], function($){
+        $('#verify_api').click(function(){
+            var api_key = $('#payment_us_okinus_payment_api_key').val().trim();
+            var store_id = $('#payment_us_okinus_payment_store_id').val().trim();
+
+            if(!api_key || !store_id){
+                return false;
+            }
+
+            $.ajax({
+                url: '<?= $block->getUrl("okinus/system/verify")?>',
+                method: 'post',
+                data:{
+                    api_key,
+                    store_id
+                },
+                showLoader: true
+            }).done(function(response){
+                if(response.success){
+                    $('#verify-status').html("<span style='color: green'>Connected</span>");
+                }else{
+                    $('#verify-status').html("<span style='color: red'>Error Connecting</span>");
+                }
+            })
+        })
+    })
+</script>
