@@ -1,20 +1,36 @@
 <?php
 namespace Okinus\Payment\Controller\Cart;
 
-class Checkprice extends \Magento\Framework\App\Action\Action{
+use Magento\Framework\App\Action\Context;
+use Magento\Checkout\Model\Session;
+use Magento\Framework\Controller\Result\JsonFactory;
+use Magento\Framework\Stdlib\CookieManagerInterface;
+use Magento\Framework\Pricing\Helper\Data;
+use Magento\Framework\App\Action\Action;
+
+class Checkprice extends Action
+{
+
+    /**
+     * @param Context $context
+     * @param Session $checkoutSession
+     * @param Data $priceHelper
+     * @param JsonFactory $jsonFactory
+     * @param CookieManagerInterface $cookieManager
+     */
     public function __construct(
-        \Magento\Framework\App\Action\Context $context,
-        \Magento\Checkout\Model\Session $checkoutSession,
-        \Magento\Framework\Controller\Result\JsonFactory $jsonFactory,
-        \Magento\Framework\Stdlib\CookieManagerInterface $cookieManager,
-        \Magento\Framework\Pricing\Helper\Data $priceHelper
+        Context $context,
+        Session $checkoutSession,
+        Data $priceHelper,
+        CookieManagerInterface $cookieManager,
+        JsonFactory $jsonFactory
     )
     {
         parent::__construct($context);
-        $this->checkoutSession = $checkoutSession;
-        $this->jsonFactory = $jsonFactory;
         $this->cookieManager = $cookieManager;
         $this->priceHelper = $priceHelper;
+        $this->jsonFactory = $jsonFactory;
+        $this->checkoutSession = $checkoutSession;
     }
 
 
@@ -34,7 +50,11 @@ class Checkprice extends \Magento\Framework\App\Action\Action{
         return $jsonFactory->setData(['data' => $data]);
     }
 
-  
+     /**
+     * Get Price value
+     *
+     * @return mixed
+     */
     public function getPrice($quote){
         $price = 0;
         if(!$quote){
@@ -46,6 +66,12 @@ class Checkprice extends \Magento\Framework\App\Action\Action{
         return $price;
     }
 
+    /**
+     * Get Price value
+     *
+     * @param string $name
+     * @return mixed
+     */
     public function getCookie($name){
         return $this->cookieManager->getCookie($name);
     }

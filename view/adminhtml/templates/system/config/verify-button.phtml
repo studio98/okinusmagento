@@ -8,6 +8,8 @@
         $('#verify_api').click(function(){
             var api_key = $('#payment_us_okinus_payment_api_key').val().trim();
             var store_id = $('#payment_us_okinus_payment_store_id').val().trim();
+            var retailer_slug = $('#payment_us_okinus_payment_retailer_slug').val().trim();
+            var store_slug = $('#payment_us_okinus_payment_store_slug').val().trim();
 
             if(!api_key || !store_id){
                 return false;
@@ -18,11 +20,13 @@
                 method: 'post',
                 data:{
                     api_key,
-                    store_id
+                    store_id,
+                    retailer_slug,
+                    store_slug
                 },
                 showLoader: true
             }).done(function(response){
-                if(response.success){
+                if(response.success != false){
                     $('#verify-status').html("<span style='color: green'>Connected</span>");
                 }else{
                     $('#verify-status').html("<span style='color: red'>Error Connecting</span>");

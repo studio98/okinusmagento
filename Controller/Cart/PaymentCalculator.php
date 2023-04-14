@@ -1,25 +1,43 @@
 <?php
 namespace Okinus\Payment\Controller\Cart;
 
-class PaymentCalculator extends \Magento\Framework\App\Action\Action{
-    // const URL = 'https://www.okinushub.com/api/v1/score/payments';
+use Magento\Framework\App\Action\Context;
+use Magento\Checkout\Model\Session;
+use Magento\Framework\Controller\Result\JsonFactory;
+use Magento\Framework\Stdlib\CookieManagerInterface;
+use Magento\Framework\HTTP\Client\Curl;
+use Magento\Framework\Pricing\Helper\Data;
+use Magento\Framework\App\Action\Action;
 
+class PaymentCalculator extends Action
+{
+    protected $priceHelper;
+    protected $jsonFactory;
+    protected $curl;
+    protected $checkoutSession;
+
+    /**
+     * @param Context $context
+     * @param Session $checkoutSession
+     * @param Data $priceHelper
+     * @param JsonFactory $jsonFactory
+     * @param Curl $curl
+     */
     public function __construct(
-        \Magento\Framework\App\Action\Context $context,
-        \Magento\Framework\HTTP\Client\Curl $curl,
-        \Magento\Checkout\Model\Session $checkoutSession,
-        \Magento\Framework\Controller\Result\JsonFactory $jsonFactory,
-        \Magento\Framework\Pricing\Helper\Data $priceHelper
+        Context $context,
+        Data $priceHelper,
+        JsonFactory $jsonFactory,
+        Curl $curl,
+        Session $checkoutSession
     )
     {
         parent::__construct($context);
-        $this->checkoutSession = $checkoutSession;
         $this->jsonFactory = $jsonFactory;
-        $this->priceHelper = $priceHelper;
+        $this->checkoutSession = $checkoutSession;
         $this->curl = $curl;
+        $this->priceHelper = $priceHelper;
         $this->URL = $this->getConfigValue('payment/okinus_payment/environment') == 1 ? 'https://beta2.okinus.com/api/v2/checkout' : 'https://www.okinushub.com/api/v2/checkout';
     }
-
 
     public function execute(){
         $jsonFactory = $this->jsonFactory->create();
@@ -58,7 +76,11 @@ class PaymentCalculator extends \Magento\Framework\App\Action\Action{
         return $jsonFactory->setData(['data' => $data]);
     }
 
-
+    /**
+     * Get Price value
+     *
+     * @return mixed
+     */
     public function getPrice($quote){
         $price = 0;
         if(!$quote){

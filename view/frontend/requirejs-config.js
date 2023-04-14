@@ -1,7 +1,7 @@
 var config = {
-    paths: {
-        'okinus_script': 'https://beta2.okinus.com/checkout/script'
-    },
+    // paths: {
+    //     'okinus_script': 'https://beta2.okinus.com/checkout/script'
+    // },
     config: {
         mixins: {
             'Magento_Catalog/js/catalog-add-to-cart': {

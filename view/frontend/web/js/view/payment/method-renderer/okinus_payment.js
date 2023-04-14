@@ -73,7 +73,7 @@ define(
                         alert(response.data.message);
                     }else{
                         okinus.checkout(response.data.url, function(payload) {
-                            console.log(payload, 'test')
+                            console.log('test' ,payload);
                             if(payload.status == 'success' && payload.step == 'CHECKOUT_COMPLETED'){
                                 self.placeOrder();
                             }

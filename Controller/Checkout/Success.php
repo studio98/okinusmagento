@@ -1,15 +1,28 @@
 <?php
 namespace Okinus\Payment\Controller\Checkout;
 
-class Success extends \Magento\Framework\App\Action\Action{
-    // const URL = 'https://beta2.okinus.com/api/v2/checkout';
+use Magento\Framework\App\Action\Context;
+use Magento\Framework\HTTP\Client\Curl;
+use Magento\Checkout\Model\Session;
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\Encryption\EncryptorInterface;
+use Magento\Framework\App\Action\Action;
 
+class Success extends Action{
+
+    /**
+     * @param \Magento\Framework\App\Action\Context $context
+     * @param \Magento\Framework\HTTP\Client\Curl $curl 
+     * @param \Magento\Checkout\Model\Session $checkoutSession
+     * @param \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig
+     * @param \Magento\Framework\Encryption\EncryptorInterface $encryptor
+     */
     public function __construct(
-        \Magento\Framework\App\Action\Context $context,
-        \Magento\Framework\HTTP\Client\Curl $curl,
-        \Magento\Checkout\Model\Session $checkoutSession,
-        \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig,
-        \Magento\Framework\Encryption\EncryptorInterface $encryptor
+        Context $context,
+        Session $checkoutSession,
+        Curl $curl,
+        EncryptorInterface $encryptor,
+        ScopeConfigInterface $scopeConfig
     )
     {
         parent::__construct($context);

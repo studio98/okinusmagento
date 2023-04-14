@@ -8,8 +8,8 @@
             <block class="Okinus\Payment\Block\View\Config" name="okinus-view-config" template="Okinus_Payment::view/config.phtml" ifconfig="payment/okinus_payment/active" after="-" />
         </referenceContainer>
         <referenceContainer name="before.body.end">
-            <block class="Okinus\Payment\Block\View\Widget" name="okinus-widget" template="Okinus_Payment::view/widget.phtml" ifconfig="payment/okinus_payment/active" after="-" />
             <block class="Okinus\Payment\Block\View\ApplyButton" name="okinus-apply-button" template="Okinus_Payment::view/apply-button.phtml" ifconfig="payment/okinus_payment/active" after="okinus-widget" />
+            <block class="Okinus\Payment\Block\View\Widget" name="okinus-widget" template="Okinus_Payment::view/widget.phtml" ifconfig="payment/okinus_payment/active" after="-" />
         </referenceContainer>
     </body>
 </page>

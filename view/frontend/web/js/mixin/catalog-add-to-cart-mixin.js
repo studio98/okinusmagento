@@ -1,4 +1,4 @@
-define(['jquery', 'jquery/jquery.cookie'], function ($) {
+define(['jquery', 'js-cookie/cookie-wrapper'], function ($) {
     'use strict';
 
     var addToCartMixin = {
@@ -6,6 +6,7 @@ define(['jquery', 'jquery/jquery.cookie'], function ($) {
             this._super(form);
 
             $(document).on('ajax:addToCart', function () {
+                
                 if ($.cookie('okinus_popup_status') != null && $.cookie('okinus_popup_status') == 'open') {
                     $.ajax({
                         url: '/okinus/cart/checkprice',
@@ -30,8 +31,8 @@ define(['jquery', 'jquery/jquery.cookie'], function ($) {
     };
 
     return function (targetWidget) {
-        $.widget('mage.catalogAddToCart', targetWidget, addToCartMixin);
+        return $.widget('mage.catalogAddToCart', targetWidget, addToCartMixin);
 
-        return $.mage.catalogAddToCart;
+        // return $.mage.catalogAddToCart;
     };
 });
