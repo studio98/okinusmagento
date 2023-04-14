@@ -1,9 +1,9 @@
 <script>
-    require(['okinus_script'], function(Okinus){
+    require(['Okinus_Payment/js/localload'], function(Okinus){
         window.okinus = Okinus({
             baseUri: '<?= $block->getBaseURL() ?>',
-            retailerSlug: '<?= $block->getRetailerSlug() ?>',
-            storeSlug: '<?= $block->getStoreSlug() ?>'
+            storeSlug: '<?= $block->getStoreSlug() ?>',
+            retailerSlug: '<?= $block->getRetailerSlug() ?>'
         });
     })
 </script>
