@@ -1,5 +1,23 @@
 <script>
     require(['jquery', 'js-cookie/cookie-wrapper'], function($){
+        $(document).on('click', '.amcheckout-wrapper input[type="radio"]', function(){
+            if($(this).val() == "okinus_payment"){
+                $(".action.primary.checkout.amasty span").text("Pay with Okinus");
+            }else{
+                $(".action.primary.checkout.amasty span").text("Place Order");
+            }
+        });
+
+        $(document).ready(function() {
+            setTimeout(function() {
+                if($('.amcheckout-wrapper input[type="radio"]:checked').val() == "okinus_payment"){
+                    $(".action.primary.checkout.amasty span").text("Pay with Okinus");
+                }else{
+                    $(".action.primary.checkout.amasty span").text("Place Order");
+                }
+            }, 5000);
+        });
+        
         $(document).on('click', '#okinus-apply-button', function(){
             okinus.apply(function(payload){
                 // console.log("okinus_payment",payload)

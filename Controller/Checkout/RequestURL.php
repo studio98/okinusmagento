@@ -183,7 +183,7 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
         }
         
 
-        // // Adding total discount
+        // Adding total discount
         // if($discountTotal > 0){
         //     $result[] = [
         //         'sku' => '0000',
