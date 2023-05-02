@@ -7,6 +7,7 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
     protected $checkoutSession;
     protected $encryptor;
     protected $productRepository;
+    protected $cartTotalRepository;
     protected $jsonFactory;
     protected $curl;
     protected $urlInterface;
@@ -18,6 +19,7 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
      * @param \Magento\Checkout\Model\Session $checkoutSession
      * @param \Magento\Framework\Encryption\EncryptorInterface $encryptor
      * @param \Magento\Catalog\Api\ProductRepositoryInterface $productRepository
+     * @param \Magento\Quote\Api\CartTotalRepositoryInterface $cartTotalRepository
      * @param \Magento\Framework\Controller\Result\JsonFactory $jsonFactory
      * @param \Magento\Framework\HTTP\Client\Curl $curl
      * @param \Magento\Framework\UrlInterface $urlInterface
@@ -31,6 +33,7 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
         \Magento\Catalog\Api\ProductRepositoryInterface $productRepository,
         \Magento\Framework\Controller\Result\JsonFactory $jsonFactory,
         \Magento\Framework\HTTP\Client\Curl $curl,
+        \Magento\Quote\Api\CartTotalRepositoryInterface $cartTotalRepository,
         \Magento\Framework\UrlInterface $urlInterface
     )
     {
@@ -39,6 +42,7 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
         $this->_urlInterface = $urlInterface;
         $this->encryptor = $encryptor;
         $this->productRepository = $productRepository;
+        $this->cartTotalRepository = $cartTotalRepository;
         $this->curl = $curl;
         $this->jsonFactory = $jsonFactory;
         $this->scopeConfig = $scopeConfig;
@@ -149,16 +153,45 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
                 'description' => 'Shipping',
             ];
         }
-
-        // Adding total discount
-        if($discountTotal > 0){
+        /*
+        // Adding Tax
+        $quoteId = $quote->getId();
+        $cartTotal = $this->cartTotalRepository->get($quoteId);
+        $taxAmt = $cartTotal->getTaxAmount();
+        if($taxAmt > 0){
             $result[] = [
                 'sku' => '0000',
                 'quantity' => 1,
-                'unit_price' => -$discountTotal,
-                'description' => 'Discount',
+                'unit_price' => $taxAmt,
+                'description' => 'Tax',
             ];
         }
+        */
+        
+
+        
+        // Adding Discount Rule
+        if($quote->getShippingAddress()->getDiscountAmount() && abs($quote->getShippingAddress()->getDiscountAmount()) > 0)
+        {
+            $discount_lable = $quote->getShippingAddress()->getDiscountDescription();
+            $result[] = [
+                'sku' => '0000',
+                'quantity' => 1,
+                'unit_price' => $quote->getShippingAddress()->getDiscountAmount(),
+                'description' => "Discount $discount_lable"
+            ];
+        }
+        
+
+        // // Adding total discount
+        // if($discountTotal > 0){
+        //     $result[] = [
+        //         'sku' => '0000',
+        //         'quantity' => 1,
+        //         'unit_price' => -$discountTotal,
+        //         'description' => 'Discount',
+        //     ];
+        // }
 
         return $result;
     }

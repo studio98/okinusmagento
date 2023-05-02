@@ -5,6 +5,7 @@ use Magento\Framework\App\Action\Context;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\Stdlib\CookieManagerInterface;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\HTTP\Client\Curl;
 use Magento\Framework\Pricing\Helper\Data;
 use Magento\Framework\App\Action\Action;
@@ -14,10 +15,12 @@ class PaymentCalculator extends Action
     protected $priceHelper;
     protected $jsonFactory;
     protected $curl;
+    protected $scopeConfig;
     protected $checkoutSession;
 
     /**
      * @param Context $context
+     * @param ScopeConfigInterface $scopeConfig
      * @param Session $checkoutSession
      * @param Data $priceHelper
      * @param JsonFactory $jsonFactory
@@ -26,12 +29,14 @@ class PaymentCalculator extends Action
     public function __construct(
         Context $context,
         Data $priceHelper,
+        ScopeConfigInterface $scopeConfig,
         JsonFactory $jsonFactory,
         Curl $curl,
         Session $checkoutSession
     )
     {
         parent::__construct($context);
+        $this->scopeConfig = $scopeConfig;
         $this->jsonFactory = $jsonFactory;
         $this->checkoutSession = $checkoutSession;
         $this->curl = $curl;
@@ -73,7 +78,7 @@ class PaymentCalculator extends Action
                 'value' => 0
             ];
         }
-        return $jsonFactory->setData(['data' => $data]);
+        return $jsonFactory->setData(['data' => $data ]);
     }
 
     /**
@@ -90,5 +95,18 @@ class PaymentCalculator extends Action
             $price += $item->getPrice() * $item->getQty();
         }
         return $price;
+    }
+
+    /**
+     * Get configuration value
+     *
+     * @param string $path
+     * @return mixed
+     */
+    public function getConfigValue($path){
+        return $this->scopeConfig->getValue(
+            $path,
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE
+        );
     }
 }

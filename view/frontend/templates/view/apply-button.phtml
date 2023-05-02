@@ -2,7 +2,7 @@
     require(['jquery', 'js-cookie/cookie-wrapper'], function($){
         $(document).on('click', '#okinus-apply-button', function(){
             okinus.apply(function(payload){
-                console.log("okinus_payment",payload)
+                // console.log("okinus_payment",payload)
                 if (payload.step == 'CHECKOUT_APP_COMPLETE' && payload.status == 'approved') {
                     let approvalData = payload.data;
                     let approvalAmounts = approvalData.offerAmounts;
