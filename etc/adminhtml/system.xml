@@ -13,6 +13,12 @@
                     <source_model>Okinus\Payment\Model\Config\Source\OkinusEnvironment</source_model>
                 </field>
 
+                <field id="description" translate="label" type="select" sortOrder="12" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Product Description</label>
+                    <source_model>Okinus\Payment\Model\Config\Source\OkinusProductDescription</source_model>
+                </field>
+
+
                 <field id="title" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Title</label>
                 </field>
