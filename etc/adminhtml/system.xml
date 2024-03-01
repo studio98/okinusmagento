@@ -12,8 +12,24 @@
                     <label>Environment</label>
                     <source_model>Okinus\Payment\Model\Config\Source\OkinusEnvironment</source_model>
                 </field>
+                <field id="branding" translate="label" type="select" sortOrder="12" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Branding</label>
+                    <source_model>Okinus\Payment\Model\Config\Source\OkinusBranding</source_model>
+                </field>
 
-                <field id="description" translate="label" type="select" sortOrder="12" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="apply_product" translate="label" type="select" sortOrder="13" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Apply Button on Product Page</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="starting_at_disclaimer" translate="label" type="text" sortOrder="14" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Starting At Disclaimer</label>
+                </field>
+
+                <field id="site_type" translate="label" type="select" sortOrder="15" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Site Type</label>
+                    <source_model>Okinus\Payment\Model\Config\Source\OkinusSiteType</source_model>
+                </field>
+                <field id="description" translate="label" type="select" sortOrder="16" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Product Description</label>
                     <source_model>Okinus\Payment\Model\Config\Source\OkinusProductDescription</source_model>
                 </field>
@@ -48,7 +64,9 @@
                     <source_model>Okinus\Payment\Model\Config\Source\WidgetPosition</source_model>
                 </field>
                 <field id="apply_button_code_snippset" translate="label" type="textarea" sortOrder="37" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Apply Button Code Snippset</label>
+                    <label>Apply Button Code Snippet</label>
+                    <frontend_model>Okinus\Payment\Block\Adminhtml\System\Config\DisableField</frontend_model>
+                    <comment>Copy and paste this code snippet anywhere on the site that you want to start the Apply Now flow for customers to see how much they get approved for.</comment>
                 </field>
                 <field id="allowspecific" translate="label" type="allowspecific" sortOrder="130" showInDefault="9" showInWebsite="1" showInStore="0">
                     <label>Payment From Applicable Countries</label>

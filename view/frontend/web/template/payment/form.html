@@ -11,6 +11,7 @@
                class="radio"
                data-bind="attr: {'id': getCode()}, value: getCode(), checked: isChecked, click: selectPaymentMethod, visible: isRadioButtonVisible()"/>
         <label class="label" data-bind="attr: {'for': getCode()}">
+            <img data-bind="attr: {src: getImageUrl()}"  class="checkout-branding" />
             <span data-bind="text: getTitle()"></span>
         </label>
     </div>
@@ -32,11 +33,11 @@
                         type="button"
                         data-bind="
                         click: createCheckout,
-                        attr: {title: $t('Pay with Okinus')},
+                        attr: {title: $t('Pay with ' + getBranding())},
                         enable: (getCode() == isChecked()),
                         css: {disabled: !isPlaceOrderActionAllowed()}
                         ">
-                    <span data-bind="i18n: 'Pay with Okinus'"></span>
+                    <span data-bind="i18n: 'Pay with ' + getBranding()"></span>
                 </button>
             </div>
         </div>

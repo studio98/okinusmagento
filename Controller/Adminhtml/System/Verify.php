@@ -14,7 +14,7 @@ class Verify extends Action{
     protected $scopeConfig;
     protected $encryptor;
     protected $jsonFactory;
-        
+
     /**
      * @param Context $context
      * @param ScopeConfigInterface $scopeConfig

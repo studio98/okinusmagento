@@ -34,7 +34,7 @@ class Config extends \Magento\Framework\View\Element\Template
     public function getRetailerSlug(){
         return $this->getConfigValue('payment/okinus_payment/retailer_slug');
     }
-     
+
     /**
      * Get configuration value
      *
@@ -54,6 +54,24 @@ class Config extends \Magento\Framework\View\Element\Template
      */
     public function getStoreSlug(){
         return $this->getConfigValue('payment/okinus_payment/store_slug');
+    }
+
+    /**
+     * Get StoreSlug
+     *
+     * @return string
+     */
+    public function getBranding(){
+        return $this->getConfigValue('payment/okinus_payment/branding') == 0 ? 'Okinus' : 'Breeze Leasing';
+    }
+
+    public function getImageUrl(){
+        if($this->getBranding() == 'Okinus'){
+            return $this->getViewFileUrl('Okinus_Payment::images/okinus.png');
+        }else{
+            return $this->getViewFileUrl('Okinus_Payment::images/breeze.png');
+        }
+
     }
 
     /**

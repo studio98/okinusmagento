@@ -38,15 +38,16 @@ class Checkprice extends Action
         $jsonFactory = $this->jsonFactory->create();
         $quote = $this->checkoutSession->getQuote();
         $okinus_approval_amount = $this->getCookie('okinus_approval_amount');
-        
+
         $new_okinus_approval_amount = $okinus_approval_amount - $this->getPrice($quote);
-        
+
+
 
         $data = [
             'value_format' => str_replace(',','',$this->priceHelper->currency($new_okinus_approval_amount,true,false)),
-            'value' => $new_okinus_approval_amount
+            'value' => $new_okinus_approval_amount,
         ];
-        
+
         return $jsonFactory->setData(['data' => $data]);
     }
 
@@ -75,4 +76,7 @@ class Checkprice extends Action
     public function getCookie($name){
         return $this->cookieManager->getCookie($name);
     }
+
+
+
 }

@@ -31,6 +31,12 @@ define(
             getCode: function() {
                 return 'okinus_payment';
             },
+            getBranding: function() {
+                return window.checkoutConfig.payment.okinus_payment.branding == '1' ? 'Breeze Leasing' : 'Okinus';
+            },
+            getImageUrl: function() {
+                return window.okinusImageUrl;
+            },
 
             getData: function() {
                 return {
@@ -72,8 +78,8 @@ define(
                     if(!response.success){
                         alert(response.data.message);
                     }else{
+                        console.log(response.data.checkout_id);
                         okinus.checkout(response.data.url, function(payload) {
-                            // console.log('test' ,payload);
                             if(payload.status == 'success' && payload.step == 'CHECKOUT_COMPLETED'){
                                 self.placeOrder();
                             }

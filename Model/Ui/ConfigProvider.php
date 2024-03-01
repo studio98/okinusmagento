@@ -31,9 +31,11 @@ final class ConfigProvider implements ConfigProviderInterface
                         ClientMock::SUCCESS => __('Success'),
                         ClientMock::FAILURE => __('Fraud')
                     ],
-                    'storeSlug' => $this->scopeConfig->getValue('payment/okinus_payment/store_slug', 
+                    'branding' => $this->scopeConfig->getValue('payment/okinus_payment/branding',
                     \Magento\Store\Model\ScopeInterface::SCOPE_STORE),
-                    'retailerSlug' => $this->scopeConfig->getValue('payment/okinus_payment/retailer_slug', 
+                    'storeSlug' => $this->scopeConfig->getValue('payment/okinus_payment/store_slug',
+                    \Magento\Store\Model\ScopeInterface::SCOPE_STORE),
+                    'retailerSlug' => $this->scopeConfig->getValue('payment/okinus_payment/retailer_slug',
                     \Magento\Store\Model\ScopeInterface::SCOPE_STORE)
                 ]
             ]

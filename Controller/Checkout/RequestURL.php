@@ -106,6 +106,8 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
 
         if(isset($result['status']) && !empty($result['status']))
         {
+            $quote->getPayment()->setAdditionalInformation($result['data']);
+            $quote->save();
             $data = [
                 'success' => $result['status'],
                 'data' => [

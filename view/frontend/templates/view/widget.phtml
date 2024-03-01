@@ -51,6 +51,7 @@
             if ($.cookie('okinus_popup_status') != null && $.cookie('okinus_popup_status') == 'open') {
                 // $('.okinus-widget').show();
                 $("#okinus-apply-button").hide();
+                $("#okinus-apply-button-product").hide();
 
                 $.ajax({
                     url: '/okinus/cart/checkprice',
@@ -98,4 +99,5 @@
         <?= $block->getWidgetPosition() == 1 ? "left" : "right" ?>
         : 20px !important;
     }
+
 </style>
