@@ -13,7 +13,7 @@ class OrderConfirmed implements \Magento\Framework\Event\ObserverInterface
         \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig,
         \Magento\Quote\Api\CartRepositoryInterface $quoteRepository,
         \Magento\Framework\HTTP\Client\Curl $curl,
-        \Magento\Framework\Encryption\EncryptorInterface $encryptor,
+        \Magento\Framework\Encryption\EncryptorInterface $encryptor
 
     ) {
         $this->quoteRepository = $quoteRepository;
@@ -28,7 +28,7 @@ class OrderConfirmed implements \Magento\Framework\Event\ObserverInterface
         try{
 
             $order = $observer->getEvent()->getOrder();
-            $orderId = $order->getId();
+            $orderId = $order->getIncrementId();
             $quoteId = $order->getQuoteId();
             $quote = $this->quoteRepository->get($quoteId);
 
