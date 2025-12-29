@@ -1,9 +1,8 @@
-<script>
-    require(['okinus_script'], function(Okinus){
-        window.okinus = Okinus({
-            baseUri: '<?= $block->getBaseURL() ?>',
-            retailerSlug: '<?= $block->getRetailerSlug() ?>',
-            storeSlug: '<?= $block->getStoreSlug() ?>'
-        });
-    })
-</script>
+<!-- Okinus Config Template Loaded -->
+<div id="okinus-config-loaded" 
+     data-okinus-base-uri="<?= $escaper->escapeHtmlAttr($block->getBaseURL()) ?>" 
+     data-okinus-store-slug="<?= $escaper->escapeHtmlAttr($block->getStoreSlug()) ?>" 
+     data-okinus-retailer-slug="<?= $escaper->escapeHtmlAttr($block->getRetailerSlug()) ?>" 
+     data-okinus-image-url="<?= $escaper->escapeHtmlAttr($block->getImageUrl()) ?>"
+     data-mage-init='{"Okinus_Payment/js/okinus-config": {}}'>
+</div>

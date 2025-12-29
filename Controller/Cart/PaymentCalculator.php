@@ -1,25 +1,52 @@
 <?php
 namespace Okinus\Payment\Controller\Cart;
 
-class PaymentCalculator extends \Magento\Framework\App\Action\Action{
-    // const URL = 'https://www.okinushub.com/api/v1/score/payments';
+use Magento\Framework\App\Action\Context;
+use Magento\Checkout\Model\Session;
+use Magento\Framework\Controller\Result\JsonFactory;
+use Magento\Framework\Stdlib\CookieManagerInterface;
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\HTTP\Client\Curl;
+use Magento\Framework\Pricing\Helper\Data;
+use Magento\Framework\App\Action\Action;
 
+class PaymentCalculator extends Action
+{
+    protected $priceHelper;
+    protected $jsonFactory;
+    protected $curl;
+    protected $scopeConfig;
+    protected $checkoutSession;
+    protected $logger;
+    protected $URL;
+
+    /**
+     * @param Context $context
+     * @param ScopeConfigInterface $scopeConfig
+     * @param Session $checkoutSession
+     * @param Data $priceHelper
+     * @param JsonFactory $jsonFactory
+     * @param Curl $curl
+     */
     public function __construct(
-        \Magento\Framework\App\Action\Context $context,
-        \Magento\Framework\HTTP\Client\Curl $curl,
-        \Magento\Checkout\Model\Session $checkoutSession,
-        \Magento\Framework\Controller\Result\JsonFactory $jsonFactory,
-        \Magento\Framework\Pricing\Helper\Data $priceHelper
+        Context $context,
+        Data $priceHelper,
+        ScopeConfigInterface $scopeConfig,
+        JsonFactory $jsonFactory,
+        Curl $curl,
+        Session $checkoutSession,
+        \Psr\Log\LoggerInterface $logger
     )
     {
         parent::__construct($context);
-        $this->checkoutSession = $checkoutSession;
+        $this->scopeConfig = $scopeConfig;
         $this->jsonFactory = $jsonFactory;
-        $this->priceHelper = $priceHelper;
+        $this->checkoutSession = $checkoutSession;
         $this->curl = $curl;
+        $this->priceHelper = $priceHelper;
         $this->URL = $this->getConfigValue('payment/okinus_payment/environment') == 1 ? 'https://beta2.okinus.com/api/v2/checkout' : 'https://www.okinushub.com/api/v2/checkout';
+        $this->logger = $logger;
     }
-
 
     public function execute(){
         $jsonFactory = $this->jsonFactory->create();
@@ -38,10 +65,11 @@ class PaymentCalculator extends \Magento\Framework\App\Action\Action{
 
         $headers = ["Content-Type" => "application/json"];
         $this->curl->setHeaders($headers);
-
+        $this->logger->info('Okinus Request: ' . $this->URL . ':' . json_encode($params));
         $this->curl->post($this->URL, json_encode($params));
 
         $result = json_decode($this->curl->getBody(), true);
+        $this->logger->info('Okinus Response: ' . json_encode($result));
 
         if(isset($result['status']) && $result['status']){
             $price = $result['data']['paymentAmount_no_tax'];
@@ -55,10 +83,14 @@ class PaymentCalculator extends \Magento\Framework\App\Action\Action{
                 'value' => 0
             ];
         }
-        return $jsonFactory->setData(['data' => $data]);
+        return $jsonFactory->setData(['data' => $data ]);
     }
 
-
+    /**
+     * Get Price value
+     *
+     * @return mixed
+     */
     public function getPrice($quote){
         $price = 0;
         if(!$quote){
@@ -68,5 +100,18 @@ class PaymentCalculator extends \Magento\Framework\App\Action\Action{
             $price += $item->getPrice() * $item->getQty();
         }
         return $price;
+    }
+
+    /**
+     * Get configuration value
+     *
+     * @param string $path
+     * @return mixed
+     */
+    public function getConfigValue($path){
+        return $this->scopeConfig->getValue(
+            $path,
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE
+        );
     }
 }

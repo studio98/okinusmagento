@@ -27,6 +27,7 @@
                 <paymentInfoKeys>FRAUD_MSG_LIST</paymentInfoKeys>
                 <privateInfoKeys>FRAUD_MSG_LIST</privateInfoKeys>
                 <apply_button_code_snippset><![CDATA[<button id="okinus-apply-button">Apply With Okinus</button>]]></apply_button_code_snippset>
+                <starting_at_disclaimer>This does not include sales tax and it is only an estimate calculation</starting_at_disclaimer>
             </okinus_payment>
         </payment>
     </default>

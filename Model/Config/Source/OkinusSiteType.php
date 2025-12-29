@@ -5,7 +5,7 @@ namespace Okinus\Payment\Model\Config\Source;
  * @api
  * @since 100.0.2
  */
-class OkinusEnvironment implements \Magento\Framework\Option\ArrayInterface
+class OkinusSiteType implements \Magento\Framework\Option\ArrayInterface
 {
     /**
      * Options getter
@@ -14,7 +14,7 @@ class OkinusEnvironment implements \Magento\Framework\Option\ArrayInterface
      */
     public function toOptionArray()
     {
-        return [['value' => 1, 'label' => __('Sandbox')], ['value' => 0, 'label' => __('Live')]];
+        return [['value' => 1, 'label' => __('Home Improvement')], ['value' => 0, 'label' => __('Merchandise')]];
     }
 
     /**
@@ -24,6 +24,6 @@ class OkinusEnvironment implements \Magento\Framework\Option\ArrayInterface
      */
     public function toArray()
     {
-        return [0 => __('Live'), 1 => __('Sandbox')];
+        return [0 => __('Merchandise'), 1 => __('Home Improvement')];
     }
 }

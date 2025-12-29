@@ -1,0 +1,31 @@
+<div class="okinus_widget">
+    <div id="okinus_starting_at"></div>
+    <div class="okinus_starting_at_disclaimer" style="display: none"><?= $block->getDisclaimer() ?></div>
+    <button id="okinus-apply-button-product" style="display: none">See if you qualify</button>
+</div>
+
+<script>
+    require(['jquery', 'js-cookie/cookie-wrapper'], function($){
+
+        $(document).ready(function(){
+            $.ajax({
+                    url: '/okinus/cart/payments',
+                    method: 'post',
+                    data: {
+                        'price': '<?= $block->getProductPrice() ?>',
+                    }
+                }).done(function(response){
+                    if(response.data.value == 0){
+                        $('#okinus-apply-button-product').hide();
+                        $('#okinus_starting_at').hide();
+                        $('.okinus_starting_at_disclaimer').hide();
+                    }else{
+                        $('.okinus_starting_at_disclaimer').show();
+                        $('.okinus-apply-button-product').show();
+                        $('#okinus_starting_at').html('<span>Starting at </span><strong>' + response.data.value_format + '</strong><span> with </span><img src="<?= $block->getImageUrl() ?>" alt="<?= $block->getBranding() ?>" class="starting-at-branding" />');
+                    }
+                });
+        });
+    })
+
+</script>

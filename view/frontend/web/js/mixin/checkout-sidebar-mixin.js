@@ -1,7 +1,8 @@
-define(['jquery', 'jquery/jquery.cookie'], function ($) {
+define(['jquery', 'js-cookie/cookie-wrapper'], function ($) {
     'use strict';
 
     var checkoutSidebar = {
+        
         _updateItemQtyAfter: function(elem){
             this._super(elem);
             this.checkPrice();
@@ -35,11 +36,12 @@ define(['jquery', 'jquery/jquery.cookie'], function ($) {
                 });
             }
         }
+        
     };
 
     return function (targetWidget) {
-        $.widget('mage.sidebar', targetWidget, checkoutSidebar);
+        return $.widget('mage.sidebar', targetWidget, checkoutSidebar);
 
-        return $.mage.catalogAddToCart;
+        // return $.mage.catalogAddToCart;
     };
 });

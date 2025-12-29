@@ -20,7 +20,7 @@
 </div>
 
 <script>
-    require(['jquery', 'jquery/jquery.cookie'], function($) {
+    require(['jquery', 'js-cookie/cookie-wrapper'], function($) {
         $(document).ready(function() {
             $('.close-widget').click(function() {
                 $('.okinus-widget').fadeOut();
@@ -39,11 +39,9 @@
             });
             console.log($.cookie('okinus_popup_hide'))
             if($.cookie('okinus_popup_hide') == 'false'){
-                console.log(1)
                 $('.okinus-widget').show();
                 $('.okinus-dollar-sign').hide();
             }else{
-                console.log(2)
                 $('.okinus-widget').hide();
                 $('.okinus-dollar-sign').show();
             }
@@ -51,6 +49,7 @@
             if ($.cookie('okinus_popup_status') != null && $.cookie('okinus_popup_status') == 'open') {
                 // $('.okinus-widget').show();
                 $("#okinus-apply-button").hide();
+                $("#okinus-apply-button-product").hide();
 
                 $.ajax({
                     url: '/okinus/cart/checkprice',
@@ -98,4 +97,5 @@
         <?= $block->getWidgetPosition() == 1 ? "left" : "right" ?>
         : 20px !important;
     }
+
 </style>
