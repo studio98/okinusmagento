@@ -1,0 +1,132 @@
+<?php
+    $controller = $block->getCustomUrl();
+    echo $block->getSubscribeButtonHtml();
+    echo ' ';
+    echo $block->getCheckStatusButtonHtml();
+    echo ' ';
+    echo $block->getUnsubscribeButtonHtml();
+?>
+<div id="webhook-status-container" style="margin-top: 10px;">
+    <div id="webhook-status" style="display: inline-block; font-weight: bold"></div>
+    <div id="webhook-url" style="margin-top: 5px; font-size: 12px; color: #666;"></div>
+</div>
+<script>
+    require(['jquery'], function($){
+
+        // Check status on page load
+        setTimeout(function(){
+            checkWebhookStatus();
+        }, 1000);
+
+        // Subscribe button
+        $('#webhook_subscribe').click(function(){
+            var api_key = $('#payment_us_okinus_payment_api_key').val().trim();
+            var store_id = $('#payment_us_okinus_payment_store_id').val().trim();
+
+            if(!api_key || !store_id){
+                $('#webhook-status').html("<span style='color: red'>Error: Please configure API Key and Store ID first</span>");
+                return false;
+            }
+
+            $('#webhook-status').html("<span style='color: #666'>Subscribing...</span>");
+
+            $.ajax({
+                url: '<?= $block->getUrl("okinus/system/webhooksubscribe")?>',
+                method: 'post',
+                data:{
+                    api_key,
+                    store_id
+                },
+                showLoader: true
+            }).done(function(response){
+                if(response.success){
+                    $('#webhook-status').html("<span style='color: green'>✓ Subscribed</span>");
+                    if(response.webhook_url){
+                        $('#webhook-url').html("Webhook URL: " + response.webhook_url);
+                    }
+                    if(response.subscription_id){
+                        $('#webhook-url').append("<br>Subscription ID: " + response.subscription_id);
+                    }
+                }else{
+                    $('#webhook-status').html("<span style='color: red'>Error: " + (response.message || 'Failed to subscribe') + "</span>");
+                }
+            }).fail(function(){
+                $('#webhook-status').html("<span style='color: red'>Error: Failed to communicate with server</span>");
+            });
+        });
+
+        // Check Status button
+        $('#webhook_check_status').click(function(){
+            checkWebhookStatus();
+        });
+
+        // Unsubscribe button
+        $('#webhook_unsubscribe').click(function(){
+            if(!confirm('Are you sure you want to unsubscribe from webhook notifications?')){
+                return false;
+            }
+
+            $('#webhook-status').html("<span style='color: #666'>Unsubscribing...</span>");
+
+            $.ajax({
+                url: '<?= $block->getUrl("okinus/system/webhookunsubscribe")?>',
+                method: 'post',
+                showLoader: true,
+                data:{
+                    api_key: '****',
+                    store_id: '****'
+                },
+
+            }).done(function(response){
+                if(response.success){
+                    $('#webhook-status').html("<span style='color: orange'>Not subscribed</span>");
+                    $('#webhook-url').html('');
+                }else{
+                    $('#webhook-status').html("<span style='color: red'>Error: " + (response.message || 'Failed to unsubscribe') + "</span>");
+                }
+            }).fail(function(){
+                $('#webhook-status').html("<span style='color: red'>Error: Failed to communicate with server</span>");
+            });
+        });
+
+        function checkWebhookStatus(){
+            $('#webhook-status').html("<span style='color: #666'>Checking status...</span>");
+
+            $.ajax({
+                url: '<?= $block->getUrl("okinus/system/webhookstatus")?>',
+                method: 'post',
+                showLoader: true,
+                data:{
+                    api_key: '****',
+                    store_id: '****'
+                },
+
+            }).done(function(response){
+                if(response.subscribed){
+                    var statusText = "<span style='color: green'>✓ Active</span>";
+                    if(response.expires_at){
+                        statusText += " (Expires: " + response.expires_at + ")";
+                    }
+                    $('#webhook-status').html(statusText);
+
+                    if(response.webhook_url){
+                        $('#webhook-url').html("Webhook URL: " + response.webhook_url);
+                    }
+                    if(response.subscription_id){
+                        $('#webhook-url').append("<br>Subscription ID: " + response.subscription_id);
+                    }
+
+                    // Check if expired and show warning
+                    if(response.is_expired){
+                        $('#webhook-status').html("<span style='color: orange'>⚠ Expired - Please resubscribe</span>");
+                    }
+                }else{
+                    $('#webhook-status').html("<span style='color: orange'>Not subscribed</span>");
+                    $('#webhook-url').html('');
+                }
+            }).fail(function(){
+                $('#webhook-status').html("<span style='color: red'>Error checking status</span>");
+            });
+        }
+    })
+</script>

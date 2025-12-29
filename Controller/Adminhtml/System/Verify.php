@@ -75,7 +75,6 @@ class Verify extends Action{
 
             $headers = ["Content-Type" => "application/json", "Authorization" => "Bearer ".$api_key, "Accept" => "application/json"];
             $this->curl->setHeaders($headers);
-echo $api_key;
 
             $this->curl->post($this->URL, json_encode($params));
 

@@ -65,11 +65,12 @@
                     <frontend_model>Okinus\Payment\Block\Adminhtml\System\Config\VerifyButton</frontend_model>
                 </field>
 
+                <field id="webhook_subscription" translate="label" type="button" sortOrder="35" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Webhook Subscription</label>
+                    <frontend_model>Okinus\Payment\Block\Adminhtml\System\Config\WebhookButton</frontend_model>
+                </field>
 
-
-
-
-                <field id="display_widget" translate="label" type="select" sortOrder="35" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="display_widget" translate="label" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Display Widget</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
