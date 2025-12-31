@@ -34,6 +34,7 @@ class WebhookSubscribe extends Action
         $jsonFactory = $this->jsonFactory->create();
         $apiKey = $this->getRequest()->getParam('api_key', null);
         $storeId = $this->getRequest()->getParam('store_id', null);
+        $email = $this->getRequest()->getParam('email', null);
 
         if (!$apiKey || !$storeId) {
             return $jsonFactory->setData([
@@ -42,8 +43,15 @@ class WebhookSubscribe extends Action
             ]);
         }
 
+        if (!$email) {
+            return $jsonFactory->setData([
+                'success' => false,
+                'message' => 'Notification Email is required'
+            ]);
+        }
+
         // Subscribe to webhook
-        $result = $this->webhookHelper->subscribe($apiKey, $storeId);
+        $result = $this->webhookHelper->subscribe($apiKey, $storeId, $email);
 
         // Save subscription details to config if successful
         if ($result['success']) {

@@ -55,6 +55,28 @@ class Receive extends Action implements CsrfAwareActionInterface
                 ])->setHttpResponseCode(400);
             }
 
+            // Get signature from headers
+            $signature = $this->getRequest()->getHeader('Signature');
+            
+            if (!$signature) {
+                $this->logger->error('Webhook: Missing signature header');
+                return $jsonFactory->setData([
+                    'success' => false,
+                    'message' => 'Missing signature'
+                ])->setHttpResponseCode(401);
+            }
+
+            // Verify webhook signature
+            $isValid = $this->webhookHelper->verifySignature($rawBody, $signature, $webhookData['event_name'] ?? null);
+            
+            if (!$isValid) {
+                $this->logger->error('Webhook: Invalid signature');
+                return $jsonFactory->setData([
+                    'success' => false,
+                    'message' => 'Invalid signature'
+                ])->setHttpResponseCode(401);
+            }
+
             // Process the webhook
             $result = $this->webhookHelper->processWebhook($webhookData);
 

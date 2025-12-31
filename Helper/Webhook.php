@@ -12,6 +12,8 @@ use Magento\Quote\Model\QuoteFactory;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Sales\Model\Order\Email\Sender\OrderSender;
 use Magento\Quote\Model\QuoteManagement;
+use Magento\Sales\Model\OrderFactory;
+use Magento\Quote\Model\ResourceModel\Quote\Payment\CollectionFactory as PaymentCollectionFactory;
 use Psr\Log\LoggerInterface;
 
 class Webhook extends AbstractHelper
@@ -25,6 +27,8 @@ class Webhook extends AbstractHelper
     protected $cartRepository;
     protected $orderSender;
     protected $quoteManagement;
+    protected $orderFactory;
+    protected $paymentCollectionFactory;
     protected $logger;
 
     const XML_PATH_WEBHOOK_SUBSCRIPTION_ID = 'payment/okinus_payment/webhook_subscription_id';
@@ -44,7 +48,9 @@ class Webhook extends AbstractHelper
         CartRepositoryInterface $cartRepository,
         OrderSender $orderSender,
         QuoteManagement $quoteManagement,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        PaymentCollectionFactory $paymentCollectionFactory,
+        OrderFactory $orderFactory
     )
     {
         parent::__construct($context);
@@ -58,6 +64,8 @@ class Webhook extends AbstractHelper
         $this->orderSender = $orderSender;
         $this->quoteManagement = $quoteManagement;
         $this->logger = $logger;
+        $this->orderFactory = $orderFactory;
+        $this->paymentCollectionFactory = $paymentCollectionFactory;
     }
 
     /**
@@ -91,7 +99,7 @@ class Webhook extends AbstractHelper
     /**
      * Subscribe to webhook
      */
-    public function subscribe($apiKey, $storeId)
+    public function subscribe($apiKey, $storeId, $email)
     {
         $this->unsubscribe();
         try {
@@ -102,8 +110,8 @@ class Webhook extends AbstractHelper
                 'url' => $webhookUrl,
                 'events' => $this->getEventsToSubscribe(),
                 'store_id' => $storeId,
-                'email_notifications' => 'sarmad@studio98.com',
-                'email_errors' => 'sarmad@studio98.com',
+                'email_notifications' => $email,
+                'email_errors' => $email,
                 'http_method' => 'POST'
             ];
 
@@ -246,6 +254,57 @@ class Webhook extends AbstractHelper
         return $output;
     }
 
+
+    private function _checkApplicationStatus($applicationId){
+        try{
+
+            $url = $this->getApiUrl() . '/applications/' . $applicationId;
+            $apiKey = $this->getApiKey();
+
+            $headers = [
+                "Content-Type" => "application/json",
+                "Authorization" => "Bearer " . $apiKey,
+                "Accept" => "application/json"
+            ];
+
+            $this->curl->setHeaders($headers);
+            $this->curl->get($url);
+
+            $response = json_decode($this->curl->getBody(), true);
+
+            $applicationStatus = $response['data']['status_code'];
+            return $applicationStatus == 'Y';
+        }catch(\Exception $e){
+            $this->logger->error('Application status check error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function _setOrderId($checkoutId, $orderId){
+        try{
+
+            $url = $this->getConfigValue('payment/okinus_payment/environment') == 1 ? 'https://beta2.okinus.com/api/v2/checkout' : 'https://www.okinushub.com/api/v2/checkout';
+            $url = $url . "/$checkoutId/set-order-id/$orderId";
+            $apiKey = $this->getApiKey();
+
+            $headers = [
+                "Content-Type" => "application/json",
+                "Authorization" => "Bearer " . $apiKey,
+                "Accept" => "application/json"
+            ];
+
+            $this->curl->setHeaders($headers);
+            $this->curl->post($url, []);
+
+            $response = json_decode($this->curl->getBody(), true);
+
+        }catch(\Exception $e){
+            return false;
+        }
+    }
+
+
+
     /**
      * Unsubscribe from webhook
      */
@@ -296,36 +355,119 @@ class Webhook extends AbstractHelper
     }
 
     /**
+     * Verify webhook signature
+     */
+    public function verifySignature($payload, $incomingHash, $eventName)
+    {
+        try {
+            if (!$eventName) {
+                $this->logger->error('Webhook: Event name not provided');
+                return false;
+            }
+
+            // Get the saved secret for this event
+            $secret = $this->getConfigValue('payment/okinus_payment/webhook_secret_' . strtolower($eventName));
+
+            if (!$secret) {
+                $this->logger->error('Webhook: No secret found for event ' . $eventName);
+                return false;
+            }
+
+            // Remove newlines and extra whitespace from payload to match the stringified version
+            $cleanPayload = preg_replace('/\s+/', '', $payload);
+
+            // Generate hash using HMAC SHA256
+            $generatedHash = hash_hmac('sha256', $cleanPayload, $secret);
+
+            $this->logger->info('Webhook signature verification - Event: ' . $eventName . ', Generated: ' . $generatedHash . ', Received: ' . $incomingHash);
+
+            // Compare the hashes
+            return hash_equals($generatedHash, $incomingHash);
+
+        } catch (\Exception $e) {
+            $this->logger->error('Webhook signature verification error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Process webhook and complete quote
      */
     public function processWebhook($webhookData)
     {
         try {
-            // Extract quote/cart ID from webhook data
-            $quoteId = $webhookData['cart_id'] ?? $webhookData['quote_id'] ?? null;
+            // Parse the webhook data structure
+            $eventName = $webhookData['event_name'] ?? null;
+            $dataString = $webhookData['data'] ?? null;
 
-            if (!$quoteId) {
-                $this->logger->error('Webhook: No quote ID found in webhook data');
+            if (!$eventName || !$dataString) {
+                $this->logger->error('Webhook: Missing event_name or data field');
                 return [
                     'success' => false,
-                    'message' => 'No quote ID provided'
+                    'message' => 'Invalid webhook data structure'
                 ];
             }
 
-            // Load the quote
-            $quote = $this->quoteFactory->create()->load($quoteId);
+            // Parse the data field (it's a JSON string)
+            $eventData = json_decode($dataString, true);
+            if (!$eventData) {
+                $this->logger->error('Webhook: Failed to parse data field: ' . $dataString);
+                return [
+                    'success' => false,
+                    'message' => 'Invalid data format'
+                ];
+            }
 
-            if (!$quote->getId()) {
-                $this->logger->error('Webhook: Quote not found: ' . $quoteId);
+            // Extract application_id
+            $applicationId = $eventData['application_id'] ?? null;
+            if (!$applicationId) {
+                $this->logger->error('Webhook: No application_id found in data');
+                return [
+                    'success' => false,
+                    'message' => 'No application_id provided'
+                ];
+            }
+
+            $this->logger->info('Webhook: Processing event ' . $eventName . ' for application_id: ' . $applicationId);
+
+            if(!$this->_checkApplicationStatus($applicationId)){
+                return [
+                    'success' => true,
+                    'message' => 'Application is not the correct status for order creation'
+                ];
+            }
+
+
+            // Find quote by searching payment additional_information for checkout_id matching application_id
+            $quote = $this->findQuoteByApplicationId($applicationId);
+
+            if (!$quote) {
+                $this->logger->error('Webhook: Quote not found for application_id: ' . $applicationId);
                 return [
                     'success' => false,
                     'message' => 'Quote not found'
                 ];
             }
 
+            $this->logger->info('Webhook: Found quote ID: ' . $quote->getId());
+
+            $checkoutId = $quote->getPayment()->getAdditionalInformation()['checkout_id'];
+
+
+            // Check if order already exists for this quote
+            $existingOrder = $this->orderFactory->create()->loadByAttribute('quote_id', $quote->getId());
+            if ($existingOrder && $existingOrder->getId()) {
+                $this->logger->info('Webhook: Order already exists: ' . $existingOrder->getIncrementId());
+                return [
+                    'success' => true,
+                    'message' => 'Order already exists',
+                    'order_id' => $existingOrder->getIncrementId()
+                ];
+            }
+
             // Check if quote is already converted to order
             if (!$quote->getIsActive()) {
-                $this->logger->info('Webhook: Quote already converted: ' . $quoteId);
+                $this->logger->info('Webhook: Quote already converted: ' . $quote->getId());
                 return [
                     'success' => true,
                     'message' => 'Quote already processed',
@@ -338,26 +480,35 @@ class Webhook extends AbstractHelper
             $payment->setMethod('okinus_payment');
 
             // Add webhook data to payment for reference
-            $payment->setAdditionalInformation('okinus_application_id', $webhookData['application_id'] ?? null);
-            $payment->setAdditionalInformation('okinus_payment_id', $webhookData['payment_id'] ?? null);
+            $payment->setAdditionalInformation('okinus_application_id', $applicationId);
             $payment->setAdditionalInformation('okinus_webhook_received', date('Y-m-d H:i:s'));
+            $payment->setAdditionalInformation('okinus_event_name', $eventName);
 
             // Save quote
             $this->cartRepository->save($quote);
 
+            // Set email for billing and shipping address if not set
+            $customerEmail = $quote->getCustomerEmail();
+            if (!$customerEmail) {
+                $customerEmail = 'customer_' . $quote->getId() . '@example.com';
+                $quote->setCustomerEmail($customerEmail);
+                $quote->getBillingAddress()->setEmail($customerEmail);
+                if (!$quote->isVirtual()) {
+                    $quote->getShippingAddress()->setEmail($customerEmail);
+                }
+                $this->cartRepository->save($quote);
+            }
+
             // Convert quote to order
             $order = $this->quoteManagement->submit($quote);
+
 
             if (!$order) {
                 throw new \Exception('Failed to create order from quote');
             }
+            $this->_setOrderId($checkoutId, $order->getIncrementId());
 
-            // Send order confirmation email
-            if (!$order->getEmailSent()) {
-                $this->orderSender->send($order);
-            }
-
-            $this->logger->info('Webhook: Successfully created order: ' . $order->getIncrementId() . ' from quote: ' . $quoteId);
+            $this->logger->info('Webhook: Successfully created order: ' . $order->getIncrementId() . ' from quote: ' . $quote->getId());
 
             return [
                 'success' => true,
@@ -372,6 +523,34 @@ class Webhook extends AbstractHelper
                 'success' => false,
                 'message' => $e->getMessage()
             ];
+        }
+    }
+
+    /**
+     * Find quote by application_id stored in payment additional_information
+     */
+    protected function findQuoteByApplicationId($applicationId)
+    {
+        try {
+            // Search through quote_payment table for matching checkout_id in additional_information
+            $paymentCollection = $this->paymentCollectionFactory->create();
+            $paymentCollection->addFieldToFilter('additional_information', ['like' => '%' . $applicationId . '%']);
+
+            foreach ($paymentCollection as $payment) {
+                $this->logger->info('Webhook: Checking payment ID: ' . $payment->getId());
+                $additionalInfo = $payment->getAdditionalInformation();
+                if (isset($additionalInfo['applicationId']) && $additionalInfo['applicationId'] == $applicationId) {
+                    $quote = $this->quoteFactory->create()->load($payment->getQuoteId());
+                    if ($quote->getId()) {
+                        return $quote;
+                    }
+                }
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            $this->logger->error('Error finding quote by application_id: ' . $e->getMessage());
+            return null;
         }
     }
 
