@@ -72,7 +72,7 @@ class Webhook extends AbstractHelper
     }
 
     public function getEventsToSubscribe(){
-        return ['APPLICATION_APPROVED', 'APPLICATION_STATE_ACCEPTED', 'APPLICATION_FUNDED'];
+        return ['APPLICATION_LOAN_ISSUED'];
     }
 
     /**
