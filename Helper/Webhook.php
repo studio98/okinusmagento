@@ -123,11 +123,13 @@ class Webhook extends AbstractHelper
             ];
 
             $this->curl->setHeaders($headers);
+            $this->logger->info('Okinus Request: ' . $url . ':' . json_encode($params));
             $this->curl->post($url, json_encode($params));
 
             // First unsubscribe existing subscriptions to avoid duplicates
 
             $response = json_decode($this->curl->getBody(), true);
+            $this->logger->info('Okinus Response: ' . $url . ':' . json_encode($response));
             foreach($response as $event => $value){
                 // Save each subscription with its $eventId in the config
                 $subscriptionId = $value['subscription']['subscription_id'] ?? null;
@@ -268,6 +270,7 @@ class Webhook extends AbstractHelper
             ];
 
             $this->curl->setHeaders($headers);
+            $this->logger->info('Okinus Request: ' . $url);
             $this->curl->get($url);
 
             $response = json_decode($this->curl->getBody(), true);
@@ -294,6 +297,7 @@ class Webhook extends AbstractHelper
             ];
 
             $this->curl->setHeaders($headers);
+            $this->logger->info('Okinus Request: ' . $url);
             $this->curl->post($url, []);
 
             $response = json_decode($this->curl->getBody(), true);
@@ -328,6 +332,7 @@ class Webhook extends AbstractHelper
                 'events' => $this->getEventsToSubscribe()
             ];
 
+            $this->logger->info('Okinus Request: ' . $url . ':' . json_encode($params));
             $this->curl->post($url, json_encode($params));
 
             $response = json_decode($this->curl->getBody(), true);
