@@ -33,6 +33,7 @@ class Webhook extends AbstractHelper
 
     const XML_PATH_WEBHOOK_SUBSCRIPTION_ID = 'payment/okinus_payment/webhook_subscription_id';
     const XML_PATH_WEBHOOK_EXPIRES_AT = 'payment/okinus_payment/webhook_expires_at';
+    const XML_PATH_WEBHOOK_EMAIL = 'payment/okinus_payment/webhook_email';
 
     /**
      * Constructor
@@ -149,12 +150,14 @@ class Webhook extends AbstractHelper
                     $expiresAt
                 );
             }
+
             if(count($response) == count($this->getEventsToSubscribe())){
                 return [
                     'success' => true,
                     'subscription_id' => 0,
                     'webhook_url' => $webhookUrl,
                     'expires_at' => '',
+                    'email' => $email,
                     'message' => 'Successfully subscribed to webhook'
                 ];
             }
@@ -181,21 +184,25 @@ class Webhook extends AbstractHelper
             $subscriptions = $this->_getSubscriptionStatus();
             $subscribed = false;
             $expiresAt = null;
+            $url = $this->getWebhookUrl();
             foreach($this->getEventsToSubscribe() as $event){
                 if(isset($subscriptions[$event]) && $subscriptions[$event]['isActive']){
                     $subscribed = true;
-                    $expiresAt = $subscriptions[$event]['expiresAt'];
+                    $expiresAt = @$subscriptions[$event]['expiresAt'];
+                    $url = @$subscriptions[$event]['url'] ?? $url;
                 }else{
                     $subscribed = false;
                     break;
                 }
             }
+            $savedEmail = $this->getConfigValue(self::XML_PATH_WEBHOOK_EMAIL);
             return [
                 'subscribed' => $subscribed,
                 'subscribedEvents' => $this->getEventsToSubscribe(),
-                'webhook_url' => $this->getWebhookUrl(),
+                'webhook_url' => $url,
                 'expires_at' => $expiresAt,
-                'is_expired' => false
+                'is_expired' => false,
+                'email' => $savedEmail
             ];
 
             return [

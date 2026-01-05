@@ -65,6 +65,12 @@
                     <frontend_model>Okinus\Payment\Block\Adminhtml\System\Config\VerifyButton</frontend_model>
                 </field>
 
+                <field id="webhook_email" translate="label" type="text" sortOrder="34.5" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Webhook Notification Email</label>
+                    <validate>validate-email</validate>
+                    <comment>Email address for webhook notifications and error alerts</comment>
+                </field>
+
                 <field id="webhook_subscription" translate="label" type="button" sortOrder="35" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Webhook Subscription</label>
                     <frontend_model>Okinus\Payment\Block\Adminhtml\System\Config\WebhookButton</frontend_model>

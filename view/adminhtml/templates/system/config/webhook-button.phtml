@@ -6,10 +6,6 @@
     echo ' ';
     echo $block->getUnsubscribeButtonHtml();
 ?>
-<div style="margin-top: 10px;">
-    <label for="webhook-email" style="display: inline-block; margin-right: 10px; font-weight: bold;">Notification Email:</label>
-    <input type="email" id="webhook-email" placeholder="email@example.com" style="width: 300px; padding: 5px;" required />
-</div>
 <div id="webhook-status-container" style="margin-top: 10px;">
     <div id="webhook-status" style="display: inline-block; font-weight: bold"></div>
     <div id="webhook-url" style="margin-top: 5px; font-size: 12px; color: #666;"></div>
@@ -26,7 +22,7 @@
         $('#webhook_subscribe').click(function(){
             var api_key = $('#payment_us_okinus_payment_api_key').val().trim();
             var store_id = $('#payment_us_okinus_payment_store_id').val().trim();
-            var email = $('#webhook-email').val().trim();
+            var email = $('#payment_us_okinus_payment_webhook_email').val().trim();
 
             if(!api_key || !store_id){
                 $('#webhook-status').html("<span style='color: red'>Error: Please configure API Key and Store ID first</span>");
@@ -34,14 +30,7 @@
             }
 
             if(!email){
-                $('#webhook-status').html("<span style='color: red'>Error: Notification Email is required</span>");
-                return false;
-            }
-
-            // Basic email validation
-            var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if(!emailRegex.test(email)){
-                $('#webhook-status').html("<span style='color: red'>Error: Please enter a valid email address</span>");
+                $('#webhook-status').html("<span style='color: red'>Error: Please save the Webhook Notification Email field first</span>");
                 return false;
             }
 
@@ -64,6 +53,9 @@
                     }
                     if(response.subscription_id){
                         $('#webhook-url').append("<br>Subscription ID: " + response.subscription_id);
+                    }
+                    if(response.email){
+                        $('#webhook-url').append("<br>Notification Email: " + response.email);
                     }
                 }else{
                     $('#webhook-status').html("<span style='color: red'>Error: " + (response.message || 'Failed to subscribe') + "</span>");
@@ -132,6 +124,9 @@
                     }
                     if(response.subscription_id){
                         $('#webhook-url').append("<br>Subscription ID: " + response.subscription_id);
+                    }
+                    if(response.email){
+                        $('#webhook-url').append("<br>Notification Email: " + response.email);
                     }
 
                     // Check if expired and show warning
