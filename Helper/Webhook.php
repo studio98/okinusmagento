@@ -178,14 +178,6 @@ class Webhook extends AbstractHelper
     public function checkStatus()
     {
         try {
-            // $subscriptionId = $this->getConfigValue(self::XML_PATH_WEBHOOK_SUBSCRIPTION_ID);
-
-            // if (!$subscriptionId) {
-            //     return [
-            //         'subscribed' => false,
-            //         'message' => 'No active subscription found'
-            //     ];
-            // }
             $subscriptions = $this->_getSubscriptionStatus();
             $subscribed = false;
             $expiresAt = null;
@@ -222,6 +214,7 @@ class Webhook extends AbstractHelper
     private function _getSubscriptionStatus(){
         $url = $this->getApiUrl() . '/webhooks/status';
         $apiKey = $this->getApiKey();
+        // echo $apiKey . "\n";
 
         $headers = [
             "Content-Type" => "application/json",
@@ -355,8 +348,8 @@ class Webhook extends AbstractHelper
      */
     public function getWebhookUrl()
     {
-        // return $this->storeManager->getStore()->getBaseUrl() . 'okinus/webhook/receive';
-        return 'https://s98.ngrok.io/okinus/webhook/receive';
+        return $this->storeManager->getStore()->getBaseUrl() . 'okinus/webhook/receive';
+        // return 'https://s98.ngrok.io/okinus/webhook/receive';
     }
 
     /**
@@ -372,6 +365,7 @@ class Webhook extends AbstractHelper
 
             // Get the saved secret for this event
             $secret = $this->getConfigValue('payment/okinus_payment/webhook_secret_' . strtolower($eventName));
+            $this->logger->info('payment/okinus_payment/webhook_secret_' . strtolower($eventName) . ' - ' . 'Verifying signature for event: ' . $eventName . ' with secret: ' . $secret);
 
             if (!$secret) {
                 $this->logger->error('Webhook: No secret found for event ' . $eventName);
