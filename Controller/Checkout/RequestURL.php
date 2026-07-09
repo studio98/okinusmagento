@@ -65,7 +65,7 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
 
     public function execute()
     {
-        $thankyou = $this->_urlInterface->getUrl('checkout/onepage/success');
+        $thankyou = $this->_urlInterface->getUrl('okinus/checkout/success');
         $failure = $this->_urlInterface->getUrl('*/*/cancel');
 
         $jsonFactory = $this->jsonFactory->create();
