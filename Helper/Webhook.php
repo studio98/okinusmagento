@@ -493,17 +493,41 @@ class Webhook extends AbstractHelper
             // Save quote
             $this->cartRepository->save($quote);
 
-            // Set email for billing and shipping address if not set
+            // Normalize guest quote before submit. QuoteManagement::submit() skips the
+            // guest preparation placeOrder() normally performs, so copy the customer
+            // email and name from the billing address onto the quote ourselves —
+            // otherwise the order is created with a blank customer name in the grid.
+            $billingAddress = $quote->getBillingAddress();
+
             $customerEmail = $quote->getCustomerEmail();
             if (!$customerEmail) {
-                $customerEmail = 'customer_' . $quote->getId() . '@example.com';
+                $customerEmail = $billingAddress->getEmail();
+                if (!$customerEmail && !$quote->isVirtual()) {
+                    $customerEmail = $quote->getShippingAddress()->getEmail();
+                }
+                if (!$customerEmail) {
+                    $customerEmail = 'customer_' . $quote->getId() . '@example.com';
+                }
                 $quote->setCustomerEmail($customerEmail);
-                $quote->getBillingAddress()->setEmail($customerEmail);
+                $billingAddress->setEmail($customerEmail);
                 if (!$quote->isVirtual()) {
                     $quote->getShippingAddress()->setEmail($customerEmail);
                 }
-                $this->cartRepository->save($quote);
             }
+
+            if (!$quote->getCustomerId()) {
+                $quote->setCustomerIsGuest(true);
+                $quote->setCustomerGroupId(\Magento\Customer\Api\Data\GroupInterface::NOT_LOGGED_IN_ID);
+                if ($quote->getCustomerFirstname() === null && $quote->getCustomerLastname() === null) {
+                    $quote->setCustomerFirstname($billingAddress->getFirstname());
+                    $quote->setCustomerLastname($billingAddress->getLastname());
+                    if ($billingAddress->getMiddlename() !== null) {
+                        $quote->setCustomerMiddlename($billingAddress->getMiddlename());
+                    }
+                }
+            }
+
+            $this->cartRepository->save($quote);
 
             // Convert quote to order
             $order = $this->quoteManagement->submit($quote);
