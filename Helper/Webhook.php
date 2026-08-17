@@ -267,7 +267,11 @@ class Webhook extends AbstractHelper
     }
 
 
-    private function _checkApplicationStatus($applicationId){
+    /**
+     * Fetch the full application record from the Okinus API.
+     * Returns the response's data array, or null on failure.
+     */
+    private function _getApplication($applicationId){
         try{
 
             $url = $this->getApiUrl() . '/applications/' . $applicationId;
@@ -285,11 +289,10 @@ class Webhook extends AbstractHelper
 
             $response = json_decode($this->curl->getBody(), true);
 
-            $applicationStatus = $response['data']['status_code'];
-            return $applicationStatus == 'Y';
+            return $response['data'] ?? null;
         }catch(\Exception $e){
             $this->logger->error('Application status check error: ' . $e->getMessage());
-            return false;
+            return null;
         }
     }
 
@@ -533,7 +536,9 @@ class Webhook extends AbstractHelper
 
             $this->logger->info('Webhook: Processing event ' . $eventName . ' for application_id: ' . $applicationId);
 
-            if(!$this->_checkApplicationStatus($applicationId)){
+            $application = $this->_getApplication($applicationId);
+
+            if (!$application || ($application['status_code'] ?? null) != 'Y') {
                 return [
                     'success' => true,
                     'message' => 'Application is not the correct status for order creation'
@@ -541,8 +546,18 @@ class Webhook extends AbstractHelper
             }
 
 
-            // Find quote by searching payment additional_information for checkout_id matching application_id
+            // Find quote by searching payment additional_information for the
+            // applicationId tagged by the frontend during iframe checkout.
             $quote = $this->findQuoteByApplicationId($applicationId);
+
+            // The applicationId tag only exists when the customer completed the
+            // application inside the iframe with the page still open. When the
+            // application is completed on Okinus's side (or the customer left
+            // before the event fired), fall back to the cart/checkout reference
+            // the application record itself carries.
+            if (!$quote) {
+                $quote = $this->findQuoteByApplicationData($application);
+            }
 
             if (!$quote) {
                 $this->logger->error('Webhook: Quote not found for application_id: ' . $applicationId);
@@ -554,7 +569,9 @@ class Webhook extends AbstractHelper
 
             $this->logger->info('Webhook: Found quote ID: ' . $quote->getId());
 
-            $checkoutId = $quote->getPayment()->getAdditionalInformation()['checkout_id'];
+            $checkoutId = $quote->getPayment()->getAdditionalInformation()['checkout_id']
+                ?? $application['checkout']['id']
+                ?? null;
 
             // Serialize order creation per quote so this path can never race the
             // frontend placeOrder() (or a concurrent webhook delivery) into
@@ -696,6 +713,50 @@ class Webhook extends AbstractHelper
             return null;
         } catch (\Exception $e) {
             $this->logger->error('Error finding quote by application_id: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Find the quote from the application record's own cart/checkout reference.
+     *
+     * The application's checkout.cart_id is the Magento quote ID we sent when
+     * the checkout was created, and checkout.id is the checkout_id we stored on
+     * the quote payment at that moment. Requiring both to match guards against
+     * loading a quote that belongs to a different checkout attempt.
+     */
+    protected function findQuoteByApplicationData($application)
+    {
+        try {
+            $cartId = $application['checkout']['cart_id'] ?? null;
+            $checkoutId = $application['checkout']['id'] ?? null;
+
+            if (!$cartId || !$checkoutId) {
+                $this->logger->info('Webhook: Application record has no cart/checkout reference, cannot fall back');
+                return null;
+            }
+
+            $quote = $this->quoteFactory->create()->load($cartId);
+            if (!$quote->getId()) {
+                $this->logger->info('Webhook: No quote found for cart_id ' . $cartId . ' from application record');
+                return null;
+            }
+
+            $additionalInfo = $quote->getPayment()->getAdditionalInformation();
+            $storedCheckoutId = $additionalInfo['checkout_id'] ?? null;
+
+            if ($storedCheckoutId != $checkoutId) {
+                $this->logger->error(
+                    'Webhook: Quote ' . $cartId . ' checkout_id mismatch (quote has '
+                    . var_export($storedCheckoutId, true) . ', application has ' . $checkoutId . ')'
+                );
+                return null;
+            }
+
+            $this->logger->info('Webhook: Found quote ' . $quote->getId() . ' via application checkout reference (checkout_id: ' . $checkoutId . ')');
+            return $quote;
+        } catch (\Exception $e) {
+            $this->logger->error('Error finding quote by application data: ' . $e->getMessage());
             return null;
         }
     }
