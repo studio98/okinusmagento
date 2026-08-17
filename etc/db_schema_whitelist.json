@@ -1,0 +1,23 @@
+{
+    "okinus_webhook_event": {
+        "column": {
+            "entity_id": true,
+            "tracked_event_id": true,
+            "event_name": true,
+            "application_id": true,
+            "payload": true,
+            "status": true,
+            "attempts": true,
+            "message": true,
+            "created_at": true,
+            "processed_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "OKINUS_WEBHOOK_EVENT_TRACKED_EVENT_ID": true
+        },
+        "index": {
+            "OKINUS_WEBHOOK_EVENT_STATUS": true
+        }
+    }
+}

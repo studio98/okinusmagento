@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="okinus_webhook_event" resource="default" engine="innodb" comment="Okinus Webhook Event Queue">
+        <column xsi:type="int" name="entity_id" unsigned="true" nullable="false" identity="true" comment="Entity ID"/>
+        <column xsi:type="bigint" name="tracked_event_id" unsigned="true" nullable="true" comment="Okinus Tracked Event ID"/>
+        <column xsi:type="varchar" name="event_name" length="64" nullable="false" comment="Okinus Event Name"/>
+        <column xsi:type="varchar" name="application_id" length="64" nullable="false" comment="Okinus Application ID"/>
+        <column xsi:type="text" name="payload" nullable="true" comment="Raw Webhook Payload"/>
+        <column xsi:type="varchar" name="status" length="16" nullable="false" default="pending" comment="Processing Status"/>
+        <column xsi:type="smallint" name="attempts" unsigned="true" nullable="false" default="0" comment="Processing Attempts"/>
+        <column xsi:type="text" name="message" nullable="true" comment="Last Processing Message"/>
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP" comment="Received At"/>
+        <column xsi:type="timestamp" name="processed_at" on_update="false" nullable="true" comment="Processed At"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="OKINUS_WEBHOOK_EVENT_TRACKED_EVENT_ID">
+            <column name="tracked_event_id"/>
+        </constraint>
+        <index referenceId="OKINUS_WEBHOOK_EVENT_STATUS" indexType="btree">
+            <column name="status"/>
+        </index>
+    </table>
+</schema>

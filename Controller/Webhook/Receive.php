@@ -77,8 +77,11 @@ class Receive extends Action implements CsrfAwareActionInterface
             //     ])->setHttpResponseCode(401);
             // }
 
-            // Process the webhook
-            $result = $this->webhookHelper->processWebhook($webhookData);
+            // Queue the webhook for deferred processing (cron) and ack fast.
+            // Creating the order inline here raced the frontend placeOrder()
+            // (duplicate orders) and the slow response caused Okinus to
+            // redeliver the event ~15s later.
+            $result = $this->webhookHelper->queueWebhook($webhookData);
 
             $httpCode = $result['success'] ? 200 : 400;
 

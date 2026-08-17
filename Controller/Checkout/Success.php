@@ -43,14 +43,17 @@ class Success extends Action implements CsrfAwareActionInterface
 
         // Fallback for non-MST1 flows where Okinus redirects the parent window here before
         // placeOrder() has run. Poll briefly for the order, set the session, then redirect.
-        $quote = $this->checkoutSession->getQuote();
+        //
+        // Read the quote id straight from session storage instead of getQuote(): once the
+        // webhook has converted the quote, getQuote() finds no *active* quote, clears the
+        // session quote id, and we lose our only handle on the order that was just created.
+        $quoteId = $this->checkoutSession->getQuoteId();
 
-        if (!$quote || !$quote->getId()) {
+        if (!$quoteId) {
             $this->logger->error('Okinus Success: No quote in session and no last order ID set');
             return $this->_redirect('checkout/onepage/success');
         }
 
-        $quoteId = $quote->getId();
         $order = null;
 
         for ($attempt = 1; $attempt <= 5; $attempt++) {

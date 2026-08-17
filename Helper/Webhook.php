@@ -14,6 +14,8 @@ use Magento\Sales\Model\Order\Email\Sender\OrderSender;
 use Magento\Quote\Model\QuoteManagement;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Quote\Model\ResourceModel\Quote\Payment\CollectionFactory as PaymentCollectionFactory;
+use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\Lock\LockManagerInterface;
 use Psr\Log\LoggerInterface;
 
 class Webhook extends AbstractHelper
@@ -29,11 +31,15 @@ class Webhook extends AbstractHelper
     protected $quoteManagement;
     protected $orderFactory;
     protected $paymentCollectionFactory;
+    protected $resourceConnection;
+    protected $lockManager;
     protected $logger;
 
     const XML_PATH_WEBHOOK_SUBSCRIPTION_ID = 'payment/okinus_payment/webhook_subscription_id';
     const XML_PATH_WEBHOOK_EXPIRES_AT = 'payment/okinus_payment/webhook_expires_at';
     const XML_PATH_WEBHOOK_EMAIL = 'payment/okinus_payment/webhook_email';
+
+    const WEBHOOK_EVENT_TABLE = 'okinus_webhook_event';
 
     /**
      * Constructor
@@ -51,7 +57,9 @@ class Webhook extends AbstractHelper
         QuoteManagement $quoteManagement,
         LoggerInterface $logger,
         PaymentCollectionFactory $paymentCollectionFactory,
-        OrderFactory $orderFactory
+        OrderFactory $orderFactory,
+        ResourceConnection $resourceConnection,
+        LockManagerInterface $lockManager
     )
     {
         parent::__construct($context);
@@ -67,6 +75,8 @@ class Webhook extends AbstractHelper
         $this->logger = $logger;
         $this->orderFactory = $orderFactory;
         $this->paymentCollectionFactory = $paymentCollectionFactory;
+        $this->resourceConnection = $resourceConnection;
+        $this->lockManager = $lockManager;
     }
 
     /**
@@ -397,6 +407,93 @@ class Webhook extends AbstractHelper
     }
 
     /**
+     * Validate and queue a webhook event for deferred processing.
+     *
+     * The webhook fires the moment the loan is issued — while the customer is
+     * usually still inside the Okinus iframe. Creating the order inline races
+     * the frontend placeOrder() call (duplicate orders) and takes several
+     * seconds, which makes Okinus redeliver the event. So we only store the
+     * event here and ack immediately; the cron job creates the order after a
+     * grace period if the frontend hasn't already done it.
+     */
+    public function queueWebhook($webhookData)
+    {
+        $eventName = $webhookData['event_name'] ?? null;
+        $dataString = $webhookData['data'] ?? null;
+
+        if (!$eventName || !$dataString) {
+            $this->logger->error('Webhook: Missing event_name or data field');
+            return [
+                'success' => false,
+                'message' => 'Invalid webhook data structure'
+            ];
+        }
+
+        $eventData = json_decode($dataString, true);
+        $applicationId = $eventData['application_id'] ?? null;
+        if (!$applicationId) {
+            $this->logger->error('Webhook: No application_id found in data');
+            return [
+                'success' => false,
+                'message' => 'No application_id provided'
+            ];
+        }
+
+        $trackedEventId = $webhookData['tracked_event_id'] ?? null;
+
+        $connection = $this->resourceConnection->getConnection();
+        $table = $this->resourceConnection->getTableName(self::WEBHOOK_EVENT_TABLE);
+
+        if ($trackedEventId) {
+            $existing = $connection->fetchOne(
+                $connection->select()->from($table, 'entity_id')->where('tracked_event_id = ?', $trackedEventId)
+            );
+            if ($existing) {
+                $this->logger->info('Webhook: Duplicate delivery of tracked_event_id ' . $trackedEventId . ' ignored');
+                return [
+                    'success' => true,
+                    'message' => 'Event already received'
+                ];
+            }
+        }
+
+        try {
+            $connection->insert($table, [
+                'tracked_event_id' => $trackedEventId,
+                'event_name' => $eventName,
+                'application_id' => $applicationId,
+                'payload' => json_encode($webhookData),
+                'status' => 'pending',
+            ]);
+        } catch (\Exception $e) {
+            // A concurrent delivery of the same tracked_event_id hits the
+            // unique index — treat it as the duplicate it is.
+            if ($trackedEventId) {
+                $existing = $connection->fetchOne(
+                    $connection->select()->from($table, 'entity_id')->where('tracked_event_id = ?', $trackedEventId)
+                );
+                if ($existing) {
+                    return [
+                        'success' => true,
+                        'message' => 'Event already received'
+                    ];
+                }
+            }
+            $this->logger->error('Webhook: Failed to queue event: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to queue event'
+            ];
+        }
+
+        $this->logger->info('Webhook: Queued event ' . $eventName . ' for application_id ' . $applicationId);
+        return [
+            'success' => true,
+            'message' => 'Event queued for processing'
+        ];
+    }
+
+    /**
      * Process webhook and complete quote
      */
     public function processWebhook($webhookData)
@@ -459,83 +556,102 @@ class Webhook extends AbstractHelper
 
             $checkoutId = $quote->getPayment()->getAdditionalInformation()['checkout_id'];
 
-
-            // Check if order already exists for this quote
-            $existingOrder = $this->orderFactory->create()->loadByAttribute('quote_id', $quote->getId());
-            if ($existingOrder && $existingOrder->getId()) {
-                $this->logger->info('Webhook: Order already exists: ' . $existingOrder->getIncrementId());
+            // Serialize order creation per quote so this path can never race the
+            // frontend placeOrder() (or a concurrent webhook delivery) into
+            // creating a second order for the same quote.
+            $lockName = 'okinus_order_quote_' . $quote->getId();
+            if (!$this->lockManager->lock($lockName, 10)) {
+                $this->logger->error('Webhook: Could not acquire lock for quote ' . $quote->getId());
                 return [
-                    'success' => true,
-                    'message' => 'Order already exists',
-                    'order_id' => $existingOrder->getIncrementId()
+                    'success' => false,
+                    'message' => 'Could not acquire order creation lock'
                 ];
             }
 
-            // Check if quote is already converted to order
-            if (!$quote->getIsActive()) {
-                $this->logger->info('Webhook: Quote already converted: ' . $quote->getId());
-                return [
-                    'success' => true,
-                    'message' => 'Quote already processed',
-                    'order_id' => $quote->getReservedOrderId()
-                ];
-            }
+            try {
+                // Reload the quote inside the lock so the checks below see the
+                // latest state, not what it was before we waited for the lock.
+                $quote = $this->quoteFactory->create()->load($quote->getId());
 
-            // Set payment method and additional information
-            $payment = $quote->getPayment();
-            $payment->setMethod('okinus_payment');
-
-            // Add webhook data to payment for reference
-            $payment->setAdditionalInformation('okinus_application_id', $applicationId);
-            $payment->setAdditionalInformation('okinus_webhook_received', date('Y-m-d H:i:s'));
-            $payment->setAdditionalInformation('okinus_event_name', $eventName);
-
-            // Save quote
-            $this->cartRepository->save($quote);
-
-            // Normalize guest quote before submit. QuoteManagement::submit() skips the
-            // guest preparation placeOrder() normally performs, so copy the customer
-            // email and name from the billing address onto the quote ourselves —
-            // otherwise the order is created with a blank customer name in the grid.
-            $billingAddress = $quote->getBillingAddress();
-
-            $customerEmail = $quote->getCustomerEmail();
-            if (!$customerEmail) {
-                $customerEmail = $billingAddress->getEmail();
-                if (!$customerEmail && !$quote->isVirtual()) {
-                    $customerEmail = $quote->getShippingAddress()->getEmail();
+                // Check if order already exists for this quote
+                $existingOrder = $this->orderFactory->create()->loadByAttribute('quote_id', $quote->getId());
+                if ($existingOrder && $existingOrder->getId()) {
+                    $this->logger->info('Webhook: Order already exists: ' . $existingOrder->getIncrementId());
+                    return [
+                        'success' => true,
+                        'message' => 'Order already exists',
+                        'order_id' => $existingOrder->getIncrementId()
+                    ];
                 }
+
+                // Check if quote is already converted to order
+                if (!$quote->getIsActive()) {
+                    $this->logger->info('Webhook: Quote already converted: ' . $quote->getId());
+                    return [
+                        'success' => true,
+                        'message' => 'Quote already processed',
+                        'order_id' => $quote->getReservedOrderId()
+                    ];
+                }
+
+                // Set payment method and additional information
+                $payment = $quote->getPayment();
+                $payment->setMethod('okinus_payment');
+
+                // Add webhook data to payment for reference
+                $payment->setAdditionalInformation('okinus_application_id', $applicationId);
+                $payment->setAdditionalInformation('okinus_webhook_received', date('Y-m-d H:i:s'));
+                $payment->setAdditionalInformation('okinus_event_name', $eventName);
+
+                // Save quote
+                $this->cartRepository->save($quote);
+
+                // Normalize guest quote before submit. QuoteManagement::submit() skips the
+                // guest preparation placeOrder() normally performs, so copy the customer
+                // email and name from the billing address onto the quote ourselves —
+                // otherwise the order is created with a blank customer name in the grid.
+                $billingAddress = $quote->getBillingAddress();
+
+                $customerEmail = $quote->getCustomerEmail();
                 if (!$customerEmail) {
-                    $customerEmail = 'customer_' . $quote->getId() . '@example.com';
-                }
-                $quote->setCustomerEmail($customerEmail);
-                $billingAddress->setEmail($customerEmail);
-                if (!$quote->isVirtual()) {
-                    $quote->getShippingAddress()->setEmail($customerEmail);
-                }
-            }
-
-            if (!$quote->getCustomerId()) {
-                $quote->setCustomerIsGuest(true);
-                $quote->setCustomerGroupId(\Magento\Customer\Api\Data\GroupInterface::NOT_LOGGED_IN_ID);
-                if ($quote->getCustomerFirstname() === null && $quote->getCustomerLastname() === null) {
-                    $quote->setCustomerFirstname($billingAddress->getFirstname());
-                    $quote->setCustomerLastname($billingAddress->getLastname());
-                    if ($billingAddress->getMiddlename() !== null) {
-                        $quote->setCustomerMiddlename($billingAddress->getMiddlename());
+                    $customerEmail = $billingAddress->getEmail();
+                    if (!$customerEmail && !$quote->isVirtual()) {
+                        $customerEmail = $quote->getShippingAddress()->getEmail();
+                    }
+                    if (!$customerEmail) {
+                        $customerEmail = 'customer_' . $quote->getId() . '@example.com';
+                    }
+                    $quote->setCustomerEmail($customerEmail);
+                    $billingAddress->setEmail($customerEmail);
+                    if (!$quote->isVirtual()) {
+                        $quote->getShippingAddress()->setEmail($customerEmail);
                     }
                 }
+
+                if (!$quote->getCustomerId()) {
+                    $quote->setCustomerIsGuest(true);
+                    $quote->setCustomerGroupId(\Magento\Customer\Api\Data\GroupInterface::NOT_LOGGED_IN_ID);
+                    if ($quote->getCustomerFirstname() === null && $quote->getCustomerLastname() === null) {
+                        $quote->setCustomerFirstname($billingAddress->getFirstname());
+                        $quote->setCustomerLastname($billingAddress->getLastname());
+                        if ($billingAddress->getMiddlename() !== null) {
+                            $quote->setCustomerMiddlename($billingAddress->getMiddlename());
+                        }
+                    }
+                }
+
+                $this->cartRepository->save($quote);
+
+                // Convert quote to order
+                $order = $this->quoteManagement->submit($quote);
+
+                if (!$order) {
+                    throw new \Exception('Failed to create order from quote');
+                }
+            } finally {
+                $this->lockManager->unlock($lockName);
             }
 
-            $this->cartRepository->save($quote);
-
-            // Convert quote to order
-            $order = $this->quoteManagement->submit($quote);
-
-
-            if (!$order) {
-                throw new \Exception('Failed to create order from quote');
-            }
             $this->_setOrderId($checkoutId, $order->getIncrementId());
 
             $this->logger->info('Webhook: Successfully created order: ' . $order->getIncrementId() . ' from quote: ' . $quote->getId());
