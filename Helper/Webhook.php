@@ -560,6 +560,22 @@ class Webhook extends AbstractHelper
             }
 
             if (!$quote) {
+                // The frontend flow may have already converted this cart to an
+                // order (its observer reports the order id to Okinus itself).
+                // Treat that as success instead of burning retries on it.
+                $cartId = $application['checkout']['cart_id'] ?? null;
+                if ($cartId) {
+                    $existingOrder = $this->orderFactory->create()->loadByAttribute('quote_id', $cartId);
+                    if ($existingOrder && $existingOrder->getId()) {
+                        $this->logger->info('Webhook: Order already exists for cart_id ' . $cartId . ': ' . $existingOrder->getIncrementId());
+                        return [
+                            'success' => true,
+                            'message' => 'Order already exists',
+                            'order_id' => $existingOrder->getIncrementId()
+                        ];
+                    }
+                }
+
                 $this->logger->error('Webhook: Quote not found for application_id: ' . $applicationId);
                 return [
                     'success' => false,
@@ -588,7 +604,9 @@ class Webhook extends AbstractHelper
             try {
                 // Reload the quote inside the lock so the checks below see the
                 // latest state, not what it was before we waited for the lock.
-                $quote = $this->quoteFactory->create()->load($quote->getId());
+                // Cron runs in the admin store scope, so quote loads must be
+                // store-agnostic or they come back empty.
+                $quote = $this->quoteFactory->create()->setSharedStoreIds(['*'])->load($quote->getId());
 
                 // Check if order already exists for this quote
                 $existingOrder = $this->orderFactory->create()->loadByAttribute('quote_id', $quote->getId());
@@ -703,7 +721,7 @@ class Webhook extends AbstractHelper
                 $this->logger->info('Webhook: Checking payment ID: ' . $payment->getId());
                 $additionalInfo = $payment->getAdditionalInformation();
                 if (isset($additionalInfo['applicationId']) && $additionalInfo['applicationId'] == $applicationId) {
-                    $quote = $this->quoteFactory->create()->load($payment->getQuoteId());
+                    $quote = $this->quoteFactory->create()->setSharedStoreIds(['*'])->load($payment->getQuoteId());
                     if ($quote->getId()) {
                         return $quote;
                     }
@@ -736,7 +754,7 @@ class Webhook extends AbstractHelper
                 return null;
             }
 
-            $quote = $this->quoteFactory->create()->load($cartId);
+            $quote = $this->quoteFactory->create()->setSharedStoreIds(['*'])->load($cartId);
             if (!$quote->getId()) {
                 $this->logger->info('Webhook: No quote found for cart_id ' . $cartId . ' from application record');
                 return null;
