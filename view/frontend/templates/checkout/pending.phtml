@@ -1,0 +1,47 @@
+<?php
+/** @var \Magento\Framework\View\Element\Template $block */
+$cartId = $block->getRequest()->getParam('cart');
+$token = $block->getRequest()->getParam('token');
+$statusUrl = $block->getUrl('okinus/checkout/status', ['_query' => ['cart' => $cartId, 'token' => $token]]);
+$returnUrl = $block->getUrl('okinus/checkout/success', ['_query' => ['cart' => $cartId, 'token' => $token]]);
+?>
+<div class="okinus-pending" style="max-width: 640px; margin: 40px auto; text-align: center;">
+    <div class="okinus-pending-spinner" style="margin: 0 auto 24px; width: 48px; height: 48px; border: 4px solid #e0e0e0; border-top-color: #1979c3; border-radius: 50%; animation: okinus-spin 1s linear infinite;"></div>
+    <h2><?= $block->escapeHtml(__('Your down payment was received!')) ?></h2>
+    <p style="font-size: 16px; margin-top: 12px;">
+        <?= $block->escapeHtml(__('We are finalizing your order now. This usually takes just a few minutes — this page will update automatically with your order confirmation.')) ?>
+    </p>
+    <p style="color: #666; margin-top: 16px;">
+        <?= $block->escapeHtml(__('You can safely close this page; your order will be completed automatically either way.')) ?>
+    </p>
+</div>
+<style>
+    @keyframes okinus-spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+<script>
+(function () {
+    var statusUrl = '<?= $block->escapeJs($statusUrl) ?>';
+    var returnUrl = '<?= $block->escapeJs($returnUrl) ?>';
+    var timer;
+
+    function check() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', statusUrl, true);
+        xhr.onload = function () {
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data.ready) {
+                    clearInterval(timer);
+                    window.location.href = returnUrl;
+                }
+            } catch (e) {}
+        };
+        xhr.send();
+    }
+
+    timer = setInterval(check, 15000);
+    check();
+})();
+</script>

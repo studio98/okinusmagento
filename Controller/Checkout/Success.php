@@ -9,6 +9,8 @@ use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Checkout\Model\Session;
 use Magento\Sales\Model\OrderFactory;
+use Magento\Quote\Model\QuoteFactory;
+use Magento\Framework\View\Result\PageFactory;
 use Psr\Log\LoggerInterface;
 
 class Success extends Action implements CsrfAwareActionInterface
@@ -16,6 +18,8 @@ class Success extends Action implements CsrfAwareActionInterface
     protected $jsonFactory;
     protected $checkoutSession;
     protected $orderFactory;
+    protected $quoteFactory;
+    protected $pageFactory;
     protected $logger;
 
     public function __construct(
@@ -23,12 +27,16 @@ class Success extends Action implements CsrfAwareActionInterface
         JsonFactory $jsonFactory,
         Session $checkoutSession,
         OrderFactory $orderFactory,
+        QuoteFactory $quoteFactory,
+        PageFactory $pageFactory,
         LoggerInterface $logger
     ) {
         parent::__construct($context);
         $this->jsonFactory = $jsonFactory;
         $this->checkoutSession = $checkoutSession;
         $this->orderFactory = $orderFactory;
+        $this->quoteFactory = $quoteFactory;
+        $this->pageFactory = $pageFactory;
         $this->logger = $logger;
     }
 
@@ -39,6 +47,16 @@ class Success extends Action implements CsrfAwareActionInterface
         // notification is acknowledged without triggering a double redirect.
         if ($this->checkoutSession->getLastRealOrderId()) {
             return $this->jsonFactory->create()->setData(['success' => true]);
+        }
+
+        // Session-independent return: the checkout's return URL carries the
+        // cart id and a token, so we can resolve the order even when the
+        // customer paid the down payment from the Okinus Hub on another
+        // device (or long after their session expired).
+        $cartId = $this->getRequest()->getParam('cart');
+        $token = $this->getRequest()->getParam('token');
+        if ($cartId && $token) {
+            return $this->processTokenizedReturn($cartId, $token);
         }
 
         // Fallback for non-MST1 flows where Okinus redirects the parent window here before
@@ -82,6 +100,42 @@ class Success extends Action implements CsrfAwareActionInterface
         }
 
         return $this->_redirect('checkout/onepage/success');
+    }
+
+    /**
+     * Resolve the return using the cart id + token from the checkout's
+     * return URL instead of the browser session. If the order exists, hand
+     * it to the session and show the native confirmation; if the cron
+     * hasn't converted the quote yet, render the "finalizing your order"
+     * page, which polls okinus/checkout/status and comes back here.
+     */
+    private function processTokenizedReturn($cartId, $token)
+    {
+        $quote = $this->quoteFactory->create()->setSharedStoreIds(['*'])->load($cartId);
+
+        $storedToken = null;
+        if ($quote->getId()) {
+            $storedToken = $quote->getPayment()->getAdditionalInformation()['success_token'] ?? null;
+        }
+
+        if (!$storedToken || !hash_equals((string)$storedToken, (string)$token)) {
+            $this->logger->error('Okinus Success: Invalid cart/token on return URL for cart ' . $cartId);
+            return $this->_redirect('checkout/cart');
+        }
+
+        $order = $this->orderFactory->create()->loadByAttribute('quote_id', $quote->getId());
+        if ($order && $order->getId()) {
+            $this->checkoutSession->setLastOrderId($order->getId());
+            $this->checkoutSession->setLastRealOrderId($order->getIncrementId());
+            $this->checkoutSession->setLastSuccessQuoteId($quote->getId());
+            $this->checkoutSession->setLastQuoteId($quote->getId());
+            return $this->_redirect('checkout/onepage/success');
+        }
+
+        $this->logger->info('Okinus Success: Order not created yet for cart ' . $cartId . ', showing pending page');
+        $page = $this->pageFactory->create();
+        $page->getConfig()->getTitle()->set(__('Payment received'));
+        return $page;
     }
 
     public function createCsrfValidationException(RequestInterface $request): ?InvalidRequestException

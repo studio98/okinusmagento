@@ -65,11 +65,18 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
 
     public function execute()
     {
-        $thankyou = $this->_urlInterface->getUrl('okinus/checkout/success');
-        $failure = $this->_urlInterface->getUrl('*/*/cancel');
-
         $jsonFactory = $this->jsonFactory->create();
         $quote = $this->checkoutSession->getQuote();
+
+        // Bake the cart id and a one-off token into the return URL so the
+        // success page can identify the order without a browser session —
+        // the customer may pay the down payment later from the Okinus Hub
+        // on another device, where no checkout session exists.
+        $successToken = bin2hex(random_bytes(16));
+        $thankyou = $this->_urlInterface->getUrl('okinus/checkout/success', [
+            '_query' => ['cart' => $quote->getId(), 'token' => $successToken]
+        ]);
+        $failure = $this->_urlInterface->getUrl('*/*/cancel');
 
         $prefill = [];
         try{
@@ -113,7 +120,9 @@ class RequestURL extends \Magento\Framework\App\Action\Action{
 
         if(isset($result['status']) && !empty($result['status']))
         {
-            $quote->getPayment()->setAdditionalInformation($result['data']);
+            $additionalInformation = $result['data'];
+            $additionalInformation['success_token'] = $successToken;
+            $quote->getPayment()->setAdditionalInformation($additionalInformation);
             $quote->save();
             $data = [
                 'success' => $result['status'],
