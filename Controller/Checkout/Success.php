@@ -42,21 +42,24 @@ class Success extends Action implements CsrfAwareActionInterface
 
     public function execute()
     {
+        // Session-independent return: the checkout's return URL carries the
+        // cart id and a token, so we can resolve the order even when the
+        // customer paid the down payment from the Okinus Hub on another
+        // device (or long after their session expired). This must run before
+        // the session check below — the session may hold a LastRealOrderId
+        // left over from an earlier order, which would show raw JSON to a
+        // customer landing here from the Okinus Hub.
+        $cartId = $this->getRequest()->getParam('cart');
+        $token = $this->getRequest()->getParam('token');
+        if ($cartId && $token) {
+            return $this->processTokenizedReturn($cartId, $token);
+        }
+
         // If the checkout session already has an order (set by MST1/one-step checkout after
         // placeOrder() completes), there is nothing to do. Return 200 so the Okinus iframe
         // notification is acknowledged without triggering a double redirect.
         if ($this->checkoutSession->getLastRealOrderId()) {
             return $this->jsonFactory->create()->setData(['success' => true]);
-        }
-
-        // Session-independent return: the checkout's return URL carries the
-        // cart id and a token, so we can resolve the order even when the
-        // customer paid the down payment from the Okinus Hub on another
-        // device (or long after their session expired).
-        $cartId = $this->getRequest()->getParam('cart');
-        $token = $this->getRequest()->getParam('token');
-        if ($cartId && $token) {
-            return $this->processTokenizedReturn($cartId, $token);
         }
 
         // Fallback for non-MST1 flows where Okinus redirects the parent window here before
