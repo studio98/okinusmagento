@@ -2,9 +2,13 @@
 <page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" layout="1column" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
         <referenceContainer name="content">
+            <!-- cacheable="false" is required: if the full page cache stores the
+                 pending state, the page keeps serving "finalizing your order"
+                 after the order exists, and the poll redirect loops forever. -->
             <block class="Magento\Framework\View\Element\Template"
                    name="okinus.checkout.pending"
-                   template="Okinus_Payment::checkout/pending.phtml"/>
+                   template="Okinus_Payment::checkout/pending.phtml"
+                   cacheable="false"/>
         </referenceContainer>
     </body>
 </page>

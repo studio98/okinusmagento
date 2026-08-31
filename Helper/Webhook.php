@@ -689,6 +689,25 @@ class Webhook extends AbstractHelper
 
             $this->_setOrderId($checkoutId, $order->getIncrementId());
 
+            // Webhook-created orders bypass the frontend flow that normally
+            // triggers the order confirmation email — send it here.
+            try {
+                $this->orderSender->send($order);
+            } catch (\Exception $e) {
+                $this->logger->error('Webhook: Failed to send order email for ' . $order->getIncrementId() . ': ' . $e->getMessage());
+            }
+
+            // Reliable hook for integrations (e.g. auto-invoicing) that need to
+            // react to orders created through the webhook path specifically.
+            try {
+                $this->_eventManager->dispatch('okinus_webhook_order_created', [
+                    'order' => $order,
+                    'quote' => $quote,
+                ]);
+            } catch (\Exception $e) {
+                $this->logger->error('Webhook: okinus_webhook_order_created observer error: ' . $e->getMessage());
+            }
+
             $this->logger->info('Webhook: Successfully created order: ' . $order->getIncrementId() . ' from quote: ' . $quote->getId());
 
             return [
