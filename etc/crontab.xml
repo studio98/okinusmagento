@@ -4,5 +4,8 @@
         <job name="okinus_payment_process_webhook_events" instance="Okinus\Payment\Cron\ProcessWebhookEvents" method="execute">
             <schedule>* * * * *</schedule>
         </job>
+        <job name="okinus_payment_renew_webhook_subscription" instance="Okinus\Payment\Cron\RenewWebhookSubscription" method="execute">
+            <schedule>0 3 * * *</schedule>
+        </job>
     </group>
 </config>
